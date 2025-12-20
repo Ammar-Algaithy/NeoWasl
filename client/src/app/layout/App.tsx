@@ -1,18 +1,17 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Box, Container, CssBaseline, ThemeProvider, createTheme } from "@mui/material";
-import type { Product } from "../models/product";
-import Catalog from "../../features/catalog/Catalog";
-import NavBar from "./NavBar";
+import TopNavBar from "./TopNavBar";
+import { Outlet } from "react-router-dom";
+import BottomNav from "./BottomNav";
 
 function App() {
-  const [products, setProducts] = useState<Product[]>([]);
 
   const theme = useMemo(
     () =>
       createTheme({
         palette: {
           mode: "light",
-          primary: { main: "#ef4444" }, // red-500
+          primary: { main: "#ef4449" }, // red-500
 
           // NeoWasl: clean black/white surfaces
           background: {
@@ -104,24 +103,19 @@ function App() {
     []
   );
 
-  useEffect(() => {
-    fetch("https://localhost:5001/api/products")
-      .then((res) => res.json())
-      .then((data) => setProducts(data));
-  }, []);
-
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
 
       {/* NavBar no longer receives theme toggle props */}
-      <NavBar />
+      <TopNavBar />
 
-      <Box sx={{ minHeight: "100vh", bgcolor: "background.default" }}>
+      <Box sx={{ minHeight: "100vh", bgcolor: "background.default", mb: 7 }}>
         <Container maxWidth="lg" sx={{ mt: { xs: 10, sm: 12 }, pb: 4 }}>
-          <Catalog products={products} />
+          <Outlet />
         </Container>
       </Box>
+      <BottomNav />
     </ThemeProvider>
   );
 }
