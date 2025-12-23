@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   Box,
@@ -6,7 +6,6 @@ import {
   Button,
   IconButton,
   Chip,
-  CircularProgress,
   Stack,
   Divider,
 } from "@mui/material";
@@ -14,28 +13,20 @@ import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
 import AddIcon from "@mui/icons-material/Add";
 import RemoveIcon from "@mui/icons-material/Remove";
 
-import type { Product } from "../../app/models/product";
+
+import { useFetchProductDetailsQuery } from "./catalogApi";
+import LoadingComponent from "../../app/layout/LoadingComponent";
 
 export default function ProductsDetailes() {
   const { id } = useParams<{ id: string }>();
+  const {data: product, isLoading} = useFetchProductDetailsQuery(id ? parseInt(id, 10) : 0);
+  
   const navigate = useNavigate();
-
-  const [product, setProduct] = useState<Product | null>(null);
+  
   const [quantity, setQuantity] = useState(1);
-  const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState(false);
 
-  useEffect(() => {
 
-    fetch(`https://localhost:5001/api/products/${id}`)
-      .then((res) => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.json();
-      })
-      .then((data: Product) => setProduct(data))
-      .catch(() => setProduct(null))
-      .finally(() => setLoading(false));
-  }, [id]);
 
   const canAdd = !!product && product.quantityInStock > 0;
 
@@ -46,20 +37,7 @@ export default function ProductsDetailes() {
     console.log("Add to cart", { productId: product.id, quantity });
   };
 
-  if (loading) {
-    return (
-      <Box
-        sx={{
-          height: "100vh",
-          display: "grid",
-          placeItems: "center",
-          bgcolor: "#fff",
-        }}
-      >
-        <CircularProgress color="error" />
-      </Box>
-    );
-  }
+  if (isLoading) return <LoadingComponent message="Loading Product..." />;
 
   if (!product) {
     return (
