@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   Box,
@@ -7,265 +7,125 @@ import {
   IconButton,
   Chip,
   Stack,
-  Divider,
+  GlobalStyles,
+  Fade
 } from "@mui/material";
 import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
 import AddIcon from "@mui/icons-material/Add";
 import RemoveIcon from "@mui/icons-material/Remove";
-
 
 import { useFetchProductDetailsQuery } from "./catalogApi";
 import LoadingComponent from "../../app/layout/LoadingComponent";
 
 export default function ProductsDetailes() {
   const { id } = useParams<{ id: string }>();
-  const {data: product, isLoading} = useFetchProductDetailsQuery(id ? parseInt(id, 10) : 0);
-  
+  const { data: product, isLoading } = useFetchProductDetailsQuery(id ? parseInt(id, 10) : 0);
   const navigate = useNavigate();
   
   const [quantity, setQuantity] = useState(1);
-  const [expanded, setExpanded] = useState(false);
+  const [showToast, setShowToast] = useState(false);
 
-
-
-  const canAdd = !!product && product.quantityInStock > 0;
+  useEffect(() => {
+    if (showToast) {
+      const timer = setTimeout(() => setShowToast(false), 2500);
+      return () => clearTimeout(timer);
+    }
+  }, [showToast]);
 
   const handleAddToCart = () => {
-    if (!product || !canAdd) return;
-
-    // TODO: Replace with your real add-to-cart logic
-    console.log("Add to cart", { productId: product.id, quantity });
+    if (!product) return;
+    setShowToast(true);
   };
 
   if (isLoading) return <LoadingComponent message="Loading Product..." />;
-
-  if (!product) {
-    return (
-      <Box sx={{ minHeight: "100vh", bgcolor: "#fff", p: 3 }}>
-        <Typography variant="h6" sx={{ fontWeight: 800, mb: 1 }}>
-          Product not found
-        </Typography>
-        <Button onClick={() => navigate("/catalog")}>Back</Button>
-      </Box>
-    );
-  }
+  if (!product) return <Box sx={{ height: "100dvh", display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Button onClick={() => navigate("/catalog")}>Back</Button></Box>;
 
   return (
-    <Box
-      sx={{
-        height: "100vh",
-        bgcolor: "#fff",
-        display: "flex",
-        flexDirection: "column",
-        overflow: "hidden",
-      }}
-    >
-      {/* Scrollable */}
-      <Box sx={{ flex: 1, overflowY: "auto", pb: 3 }}>
-        {/* IMAGE */}
-        <Box sx={{ px: 2, pt: 1 }}>
-          <Box
-            sx={{
-              height: "42vh",
-              minHeight: 260,
-              borderRadius: 3,
-              border: "1px solid #f1f1f1",
-              bgcolor: "#fafafa",
-              mt: -2,
-              overflow: "hidden",
-              p: 1.5,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            {/* Inner rounded wrapper (makes radius visible) */}
-            <Box
-              sx={{
-                width: "100%",
-                height: "100%",
-                borderRadius: 1,
-                overflow: "hidden",
-                bgcolor: "#fff",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <img
-                src={product.pictureUrl || "/placeholder.png"}
-                alt={product.name}
-                style={{
-                  width: "100%",
-                  height: "100%",
-                  objectFit: "cover",
-                  display: "block",
-                }}
-              />
-            </Box>
-          </Box>
+    <>
+      <GlobalStyles styles={{ 
+        body: { margin: 0, padding: 0, overflow: 'hidden !important', height: '100dvh !important' },
+        html: { overflow: 'hidden !important', height: '100dvh !important' } 
+      }} />
+
+      <Box
+        sx={{
+          position: "fixed",
+          top: 0, left: 0, right: 0, bottom: 0,
+          height: "100dvh",
+          width: "100vw",
+          display: "flex",
+          flexDirection: "column",
+          bgcolor: "#fff",
+          zIndex: 1000,
+        }}
+      >
+        {/* HEADER */}
+        <Box sx={{ p: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Button sx={{ color: 'black', fontWeight: 800, textTransform: 'none' }} onClick={() => navigate(-1)}>‹ Back</Button>
+            <Typography sx={{ fontWeight: 900, fontSize: '1.2rem' }}>Neo <span style={{color: '#ef4444'}}>Wasl</span></Typography>
+            <Box sx={{ width: 60 }} /> 
         </Box>
 
-        {/* INFO */}
-        <Box sx={{ px: 2, pt: 2 }}>
-          <Typography
-            variant="caption"
-            sx={{
-              fontWeight: 700,
-              letterSpacing: 0.7,
-              color: "text.secondary",
-              textTransform: "uppercase",
-            }}
-          >
-            {product.brand} • {product.type}
-          </Typography>
+        {/* IMAGE SECTION */}
+        <Box sx={{ height: "45dvh", display: "flex", alignItems: "center", justifyContent: "center", p: 2 }}>
+          <img src={product.pictureUrl || "/placeholder.png"} alt={product.name} style={{ maxHeight: "100%", maxWidth: "100%", objectFit: "contain" }} />
+        </Box>
 
-          <Typography
-            sx={{
-              fontSize: "1.35rem",
-              fontWeight: 800,
-              lineHeight: 1.2,
-              mt: 0.5,
-            }}
-          >
-            {product.name}
-          </Typography>
-
-          {/* PRICE + STOCK ROW */}
-          <Box
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              mt: 1,
-            }}
-          >
-            <Typography
-              sx={{
-                fontSize: "1.6rem",
-                fontWeight: 900,
-                letterSpacing: -0.4,
-                color: "#ef4444",
-              }}
-            >
-              $
-              {product.price.toLocaleString(undefined, {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              })}
+        {/* INFO SECTION */}
+        <Box sx={{ flex: 1, px: 3, display: "flex", flexDirection: "column" }}>
+          <Stack direction="row" justifyContent="space-between" alignItems="center" mb={1}>
+            <Typography sx={{ fontSize: "1.8rem", fontWeight: 900, color: "#ef4444" }}>
+              ${product.price.toLocaleString()}
             </Typography>
+            <Chip label="In Stock" color="success" size="small" sx={{ fontWeight: 800 }} />
+          </Stack>
 
-            <Chip
-              label={canAdd ? "In Stock" : "Out of Stock"}
-              size="small"
-              color={canAdd ? "success" : "error"}
-              sx={{
-                fontWeight: 800,
-                borderRadius: 2,
-                height: 22,
-                fontSize: "0.7rem",
-              }}
-            />
-          </Box>
-
-          <Divider sx={{ my: 2 }} />
-
-          {/* DESCRIPTION */}
-          <Typography sx={{ fontWeight: 900, mb: 0.75 }}>
-            Description
-          </Typography>
-
-          <Typography
-            variant="body2"
-            sx={{
-              color: "text.secondary",
-              lineHeight: 1.55,
-              display: "-webkit-box",
-              WebkitLineClamp: expanded ? "unset" : 2,
-              WebkitBoxOrient: "vertical",
-              overflow: "hidden",
-            }}
-          >
+          <Typography variant="h6" sx={{ fontWeight: 800, mb: 1 }}>{product.name}</Typography>
+          
+          <Typography variant="body2" sx={{ color: "text.secondary", mb: 2, display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
             {product.description}
           </Typography>
 
-          {/* IMPORTANT: make "Read more" a real button for accessibility */}
-          <Button
-            variant="text"
-            disableRipple
-            onClick={() => setExpanded((v) => !v)}
-            aria-label={expanded ? "Collapse description" : "Expand description"}
-            sx={{
-              p: 0,
-              minWidth: 0,
-              mt: 0.6,
-              textTransform: "none",
-              fontWeight: 900,
-              color: "#ef4444",
-              justifyContent: "flex-start",
-              "&:hover": { bgcolor: "transparent", textDecoration: "underline" },
-            }}
-          >
-            {expanded ? "Read less" : "Read more"}
-          </Button>
+          {/* ACTIONS ROW - Pinned High */}
+          <Box sx={{ mt: "auto", mb: 14 }}>
+            
+            {/* NEW NOTIFICATION POSITION: Directly above the buttons */}
+            <Box sx={{ height: 24, mb: 1, display: 'flex', justifyContent: 'center' }}>
+              <Fade in={showToast}>
+                <Typography sx={{ color: '#ef4444', fontWeight: 800, fontSize: '0.9rem' }}>
+                  ✓ {quantity} item{quantity > 1 ? 's' : ''} added to cart
+                </Typography>
+              </Fade>
+            </Box>
 
-          {/* ACTIONS */}
-          <Box sx={{ mt: 1.75 }}>
-            <Box sx={{ display: "flex", gap: 1.25 }}>
-              <Stack
-                direction="row"
-                alignItems="center"
-                justifyContent="space-between"
-                sx={{
-                  width: "38%",
-                  minWidth: 120,
-                  bgcolor: "#f8f9fa",
-                  borderRadius: 3,
-                  border: "1px solid #eee",
-                }}
-              >
-                <IconButton
-                  aria-label="Decrease quantity"
-                  onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                  disabled={!canAdd}
-                >
-                  <RemoveIcon />
-                </IconButton>
-
+            <Stack direction="row" spacing={2}>
+              <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ width: "110px", height: "50px", bgcolor: "#f5f5f5", borderRadius: "25px", px: 1 }}>
+                <IconButton onClick={() => setQuantity(q => Math.max(1, q - 1))}><RemoveIcon fontSize="small" /></IconButton>
                 <Typography sx={{ fontWeight: 900 }}>{quantity}</Typography>
-
-                <IconButton
-                  aria-label="Increase quantity"
-                  onClick={() => setQuantity((q) => q + 1)}
-                  disabled={!canAdd}
-                >
-                  <AddIcon />
-                </IconButton>
+                <IconButton onClick={() => setQuantity(q => q + 1)}><AddIcon fontSize="small" /></IconButton>
               </Stack>
 
               <Button
                 fullWidth
                 variant="contained"
-                disableElevation
-                startIcon={<ShoppingCartIcon />}
-                disabled={!canAdd}
                 onClick={handleAddToCart}
-                aria-label="Add product to cart"
-                sx={{
-                  borderRadius: 3,
-                  fontWeight: 900,
-                  textTransform: "none",
-                  bgcolor: "#ef4444",
-                  "&:hover": { bgcolor: "#dc2626" },
-                  "&.Mui-disabled": { bgcolor: "#f3f4f6", color: "#9ca3af" },
+                startIcon={<ShoppingCartIcon />}
+                sx={{ 
+                    height: "50px", 
+                    bgcolor: "#ef4444", 
+                    borderRadius: "25px", 
+                    fontWeight: 900, 
+                    textTransform: "none", 
+                    boxShadow: '0 4px 14px 0 rgba(239, 68, 68, 0.39)',
+                    "&:hover": { bgcolor: "#dc2626" } 
                 }}
               >
                 Add to Cart
               </Button>
-            </Box>
+            </Stack>
           </Box>
         </Box>
       </Box>
-    </Box>
+    </>
   );
 }

@@ -115,7 +115,7 @@ function App() {
           <Outlet />
         </Container>
       </Box>
-      <BottomNav />
+      <BottomNav children={undefined} />
     </ThemeProvider>
   );
 }

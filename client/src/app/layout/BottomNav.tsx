@@ -1,37 +1,50 @@
 import * as React from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
+  Box,
+  Typography,
+  Paper,
   BottomNavigation,
   BottomNavigationAction,
-  Paper,
-  Box,
+  useMediaQuery,
+  useTheme,
+  Drawer,
+  List,
+  ListItem,
+  ListItemButton,
+  ListItemIcon,
+  ListItemText,
+  Toolbar,
+  IconButton,
+  AppBar,
 } from "@mui/material";
 
+// Icons
 import HomeOutlinedIcon from "@mui/icons-material/HomeOutlined";
 import FavoriteBorderOutlinedIcon from "@mui/icons-material/FavoriteBorderOutlined";
 import ShoppingCartOutlinedIcon from "@mui/icons-material/ShoppingCartOutlined";
 import PersonOutlineOutlinedIcon from "@mui/icons-material/PersonOutlineOutlined";
+import LogoutOutlinedIcon from "@mui/icons-material/LogoutOutlined";
+import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
+import MenuIcon from "@mui/icons-material/Menu";
+import CloseIcon from "@mui/icons-material/Close";
 
-type NavItem = {
-  label: string;
-  value: string;
-  icon: React.ReactNode;
-};
+// --- Configuration ---
+const DRAWER_WIDTH = 280;
 
-const navItems: NavItem[] = [
-  { label: "Home", value: "/", icon: <HomeOutlinedIcon /> },
+const mainNavItems = [
+  { label: "Home", value: "/home", icon: <HomeOutlinedIcon /> },
   { label: "Favorites", value: "/favorites", icon: <FavoriteBorderOutlinedIcon /> },
   { label: "Cart", value: "/cart", icon: <ShoppingCartOutlinedIcon /> },
+];
+
+const bottomNavItems = [
+  { label: "Settings", value: "/settings", icon: <SettingsOutlinedIcon /> },
   { label: "Account", value: "/account", icon: <PersonOutlineOutlinedIcon /> },
 ];
 
-function CartIconWithBadge({
-  count,
-  selected,
-}: {
-  count: number;
-  selected: boolean;
-}) {
+// --- Sub-Component: Cart Badge ---
+function CartIconWithBadge({ count }: { count: number; selected: boolean }) {
   if (count <= 0) return <ShoppingCartOutlinedIcon />;
   const display = count > 9 ? "9+" : count;
 
@@ -41,8 +54,8 @@ function CartIconWithBadge({
       <Box
         sx={{
           position: "absolute",
-          top: -5,
-          right: -8,
+          top: -8,
+          right: -10,
           minWidth: 18,
           height: 18,
           px: 0.5,
@@ -53,13 +66,9 @@ function CartIconWithBadge({
           fontSize: 10,
           fontWeight: 800,
           color: "#fff",
-          // Retail red gradient
           background: "linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)",
-          border: "2px solid",
-          // The border matches the icon blob color when selected, or background when not
-          borderColor: selected ? "#ef4444" : "#fff",
+          border: "2px solid #fff",
           boxShadow: "0 2px 8px rgba(239,68,68,0.3)",
-          transition: "all 0.2s ease",
         }}
       >
         {display}
@@ -68,121 +77,308 @@ function CartIconWithBadge({
   );
 }
 
-export default function BottomNav() {
+export default function LayoutWrapper({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
-  const location = useLocation();
+  const { pathname } = useLocation();
+  const theme = useTheme();
 
-  // Hard-coded for demo
-  const cartCount: number = 3;
+  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
+  const cartCount = 3;
+
+  // Desktop drawer open state (PC only)
+  const [desktopNavOpen, setDesktopNavOpen] = React.useState(false);
 
   const currentValue = React.useMemo(() => {
-    const hit = navItems.find((x) => x.value === location.pathname);
-    return hit?.value ?? "/";
-  }, [location.pathname]);
+    const allItems = [...mainNavItems, ...bottomNavItems];
+
+    // match exact OR nested routes (ex: /favorites/123 should still highlight /favorites)
+    const hit = allItems.find(
+      (x) => pathname === x.value || pathname.startsWith(x.value + "/")
+    );
+
+    // IMPORTANT: do NOT default to "/home" — otherwise Home stays highlighted on detail pages
+    return hit?.value ?? false;
+  }, [pathname]);
+
+
+  // Close desktop drawer on route change (nice UX)
+  React.useEffect(() => {
+    setDesktopNavOpen(false);
+  }, [pathname]);
+
+  // Shared Desktop Nav Item Renderer
+  const renderNavListItem = (item: typeof mainNavItems[0]) => {
+    const selected = currentValue === item.value;
+
+    return (
+      <ListItem key={item.value} disablePadding sx={{ mb: 1 }}>
+        <ListItemButton
+          onClick={() => navigate(item.value)}
+          sx={{
+            borderRadius: 4,
+            py: 1.2,
+            px: 2,
+            transition: "0.2s ease",
+
+            // ✅ background changes based on current location
+            bgcolor: selected ? "rgba(239, 68, 68, 0.10)" : "transparent",
+            border: selected ? "1px solid rgba(239, 68, 68, 0.18)" : "1px solid transparent",
+
+            "&:hover": {
+              bgcolor: selected ? "rgba(239, 68, 68, 0.14)" : "rgba(0,0,0,0.03)",
+            },
+          }}
+        >
+          <ListItemIcon sx={{ minWidth: 50 }}>
+            <Box
+              sx={{
+                width: 40,
+                height: 40,
+                display: "grid",
+                placeItems: "center",
+                borderRadius: "12px",
+                bgcolor: selected ? "error.main" : "transparent",
+                color: selected ? "#fff" : "text.secondary",
+                transition: "0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)",
+                boxShadow: selected ? "0 4px 12px rgba(239,68,68,0.25)" : "none",
+              }}
+            >
+              {item.value === "/cart" ? (
+                <CartIconWithBadge count={cartCount} selected={selected} />
+              ) : (
+                item.icon
+              )}
+            </Box>
+          </ListItemIcon>
+
+          <ListItemText
+            primary={item.label}
+            primaryTypographyProps={{
+              fontWeight: selected ? 800 : 600,
+              fontSize: "0.95rem",
+              color: selected ? "text.primary" : "text.secondary",
+            }}
+          />
+        </ListItemButton>
+      </ListItem>
+    );
+  };
+
+  // Desktop Drawer (collapsible)
+  const desktopDrawer = (
+    <Box sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
+      <Toolbar sx={{ my: 2.5, px: 2.5, display: "flex", justifyContent: "space-between" }}>
+        <Box sx={{ display: "flex", alignItems: "center" }}>
+          <Box component="img" src="/logo.svg" sx={{ width: 32, mr: 1.5 }} />
+          <Typography variant="h6" fontWeight={900} letterSpacing={-0.5} color="text.primary">
+            STORE
+          </Typography>
+        </Box>
+
+        <IconButton onClick={() => setDesktopNavOpen(false)} aria-label="Close navigation">
+          <CloseIcon />
+        </IconButton>
+      </Toolbar>
+
+      <List sx={{ px: 2 }}>{mainNavItems.map(renderNavListItem)}</List>
+
+      <Box sx={{ flexGrow: 1 }} />
+
+      <List sx={{ px: 2, pb: 2 }}>
+        {bottomNavItems.map(renderNavListItem)}
+
+        <ListItem disablePadding>
+          <ListItemButton
+            sx={{
+              borderRadius: 4,
+              py: 1.2,
+              px: 2,
+              "&:hover": { bgcolor: "rgba(239, 68, 68, 0.04)" },
+            }}
+          >
+            <ListItemIcon sx={{ minWidth: 50 }}>
+              <Box
+                sx={{
+                  width: 40,
+                  height: 40,
+                  display: "grid",
+                  placeItems: "center",
+                  color: "text.secondary",
+                }}
+              >
+                <LogoutOutlinedIcon />
+              </Box>
+            </ListItemIcon>
+            <ListItemText
+              primary="Logout"
+              primaryTypographyProps={{ fontWeight: 600, color: "text.secondary" }}
+            />
+          </ListItemButton>
+        </ListItem>
+      </List>
+    </Box>
+  );
 
   return (
-    <Paper
-      elevation={0}
-      sx={{
-        position: "fixed",
-        left: 0,
-        right: 0,
-        bottom: 0, // Reset bottom to 0 for safe area handling
-        zIndex: 1300,
-        // Glassmorphism effect
-        bgcolor: "rgba(255, 255, 255, 0.85)",
-        backdropFilter: "blur(12px) saturate(180%)",
-        WebkitBackdropFilter: "blur(12px) saturate(180%)",
-        borderTop: "1px solid",
-        borderColor: "divider",
-        // Responsive Padding for notched phones
-        pb: "calc(env(safe-area-inset-bottom) + 8px)",
-        pt: 1,
-      }}
-    >
-      <BottomNavigation
-        showLabels
-        value={currentValue}
-        onChange={(_, newValue) => navigate(newValue)}
-        sx={{
-          height: 60,
-          bgcolor: "transparent",
-        }}
-      >
-        {navItems.map((item) => {
-          const selected = currentValue === item.value;
-
-          return (
-            <BottomNavigationAction
-              key={item.value}
-              value={item.value}
-              label={item.label}
-              icon={
-                <Box
-                  sx={{
-                    transform: selected ? "translateY(-4px)" : "translateY(0px)",
-                    transition: "all 250ms cubic-bezier(0.175, 0.885, 0.32, 1.275)",
-                    width: 44,
-                    height: 44,
-                    borderRadius: 999,
-                    display: "grid",
-                    placeItems: "center",
-                    position: "relative",
-                  }}
-                >
-                  {/* Active Background Circle */}
-                  <Box
-                    sx={{
-                      position: "absolute",
-                      inset: 0,
-                      borderRadius: 999,
-                      opacity: selected ? 1 : 0,
-                      transform: selected ? "scale(1)" : "scale(0.5)",
-                      transition: "all 200ms ease",
-                      background: "linear-gradient(135deg, #ef4444 0%, #fb7185 100%)",
-                      boxShadow: "0 8px 20px rgba(239,68,68,0.3)",
-                    }}
-                  />
-
-                  {/* Icon */}
-                  <Box
-                    sx={{
-                      position: "relative",
-                      zIndex: 1,
-                      display: "flex",
-                      "& .MuiSvgIcon-root": {
-                        fontSize: 26,
-                        color: selected ? "#fff" : "text.secondary",
-                        transition: "color 200ms ease",
-                      },
-                    }}
-                  >
-                    {item.value === "/cart" ? (
-                      <CartIconWithBadge count={cartCount} selected={selected} />
-                    ) : (
-                      item.icon
-                    )}
-                  </Box>
-                </Box>
-              }
+    <Box sx={{ display: "flex", minHeight: "100vh", bgcolor: "#F9FAFB" }}>
+      {/* --- DESKTOP TOP BAR WITH MENU BUTTON --- */}
+      {!isMobile && (
+        <AppBar
+          position="fixed"
+          elevation={0}
+          sx={{
+            bgcolor: "rgba(255,255,255,0.85)",
+            backdropFilter: "blur(14px) saturate(180%)",
+            borderBottom: "1px solid rgba(0,0,0,0.06)",
+            color: "text.primary",
+            zIndex: 1400, // above drawer paper
+          }}
+        >
+          <Toolbar sx={{ px: { xs: 2, md: 3 } }}>
+            <IconButton
+              edge="start"
+              onClick={() => setDesktopNavOpen(true)}
+              aria-label="Open navigation"
               sx={{
-                minWidth: 0,
-                transition: "all 0.2s ease",
-                "& .MuiBottomNavigationAction-label": {
-                  fontSize: 10,
-                  fontWeight: selected ? 700 : 500,
-                  mt: 0.5,
-                  color: selected ? "primary.main" : "text.secondary",
-                  transition: "all 0.2s ease",
-                },
-                "&.Mui-selected": {
-                  color: "primary.main",
+                mr: 1.5,
+                borderRadius: 2,
+
+                // ✅ optional: highlight menu button while drawer is open
+                bgcolor: desktopNavOpen ? "rgba(239, 68, 68, 0.10)" : "rgba(0,0,0,0.04)",
+                border: desktopNavOpen ? "1px solid rgba(239, 68, 68, 0.18)" : "1px solid transparent",
+
+                "&:hover": {
+                  bgcolor: desktopNavOpen ? "rgba(239, 68, 68, 0.14)" : "rgba(0,0,0,0.07)",
                 },
               }}
-            />
-          );
-        })}
-      </BottomNavigation>
-    </Paper>
+            >
+              <MenuIcon />
+            </IconButton>
+
+            <Typography fontWeight={900} letterSpacing={-0.3}>
+              STORE
+            </Typography>
+
+            <Box sx={{ flexGrow: 1 }} />
+          </Toolbar>
+        </AppBar>
+      )}
+
+      {/* --- DESKTOP COLLAPSIBLE DRAWER (HIDDEN BY DEFAULT) --- */}
+      {!isMobile && (
+        <Drawer
+          open={desktopNavOpen}
+          onClose={() => setDesktopNavOpen(false)}
+          variant="temporary"
+          ModalProps={{ keepMounted: true }}
+          sx={{
+            "& .MuiDrawer-paper": {
+              width: DRAWER_WIDTH,
+              boxSizing: "border-box",
+              borderRight: "1px solid rgba(0,0,0,0.06)",
+              bgcolor: "#FFFFFF",
+            },
+          }}
+        >
+          {desktopDrawer}
+        </Drawer>
+      )}
+
+      {/* --- MAIN CONTENT AREA --- */}
+      <Box
+        component="main"
+        sx={{
+          flexGrow: 1,
+          width: "100%",
+          p: { xs: 2, sm: 3, md: 5 },
+          pb: isMobile ? "100px" : 5,
+          pt: !isMobile ? { xs: 10, md: 12 } : undefined,
+        }}
+      >
+        {children}
+      </Box>
+
+      {/* --- MOBILE BOTTOM NAVIGATION --- */}
+      {isMobile && (
+        <Paper
+          elevation={0}
+          sx={{
+            position: "fixed",
+            bottom: 0,
+            left: 0,
+            right: 0,
+            zIndex: 1300,
+            bgcolor: "rgba(255, 255, 255, 0.9)",
+            backdropFilter: "blur(20px) saturate(180%)",
+            borderTop: "1px solid rgba(0,0,0,0.05)",
+            pb: "env(safe-area-inset-bottom)",
+          }}
+        >
+          <BottomNavigation
+            showLabels
+            value={currentValue || false}
+            onChange={(_, newValue) => navigate(newValue)}
+            sx={{ height: 70, bgcolor: "transparent" }}
+          >
+            {[...mainNavItems, bottomNavItems[1]].map((item) => {
+              const selected = currentValue === item.value;
+              return (
+                <BottomNavigationAction
+                  key={item.value}
+                  value={item.value}
+                  label={item.label}
+                  icon={
+                    <Box
+                      sx={{
+                        position: "relative",
+                        width: 42,
+                        height: 42,
+                        display: "grid",
+                        placeItems: "center",
+                        transform: selected ? "scale(1.1) translateY(-2px)" : "none",
+                        transition: "0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)",
+                      }}
+                    >
+                      <Box
+                        sx={{
+                          position: "absolute",
+                          inset: 0,
+                          borderRadius: "12px",
+                          bgcolor: selected ? "error.main" : "transparent",
+                          opacity: selected ? 1 : 0,
+                          transition: "0.3s",
+                          boxShadow: selected ? "0 4px 12px rgba(239,68,68,0.25)" : "none",
+                        }}
+                      />
+                      <Box
+                        sx={{
+                          zIndex: 1,
+                          display: "flex",
+                          color: selected ? "#fff" : "text.secondary",
+                        }}
+                      >
+                        {item.value === "/cart" ? (
+                          <CartIconWithBadge count={cartCount} selected={selected} />
+                        ) : (
+                          item.icon
+                        )}
+                      </Box>
+                    </Box>
+                  }
+                  sx={{
+                    "& .MuiBottomNavigationAction-label": {
+                      fontSize: 10,
+                      fontWeight: 700,
+                      mt: 0.5,
+                      color: selected ? "error.main" : "text.secondary",
+                    },
+                  }}
+                />
+              );
+            })}
+          </BottomNavigation>
+        </Paper>
+      )}
+    </Box>
   );
 }
