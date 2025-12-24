@@ -29,6 +29,9 @@ import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
 import MenuIcon from "@mui/icons-material/Menu";
 import CloseIcon from "@mui/icons-material/Close";
 
+// ✅ import your cart query hook
+import { useGetCartItemsQuery } from "../../features/cart/cartApi";
+
 // --- Configuration ---
 const DRAWER_WIDTH = 280;
 
@@ -44,7 +47,7 @@ const bottomNavItems = [
 ];
 
 // --- Sub-Component: Cart Badge ---
-function CartIconWithBadge({ count }: { count: number; selected: boolean }) {
+function CartIconWithBadge({ count, selected }: { count: number; selected: boolean }) {
   if (count <= 0) return <ShoppingCartOutlinedIcon />;
   const display = count > 9 ? "9+" : count;
 
@@ -69,6 +72,8 @@ function CartIconWithBadge({ count }: { count: number; selected: boolean }) {
           background: "linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)",
           border: "2px solid #fff",
           boxShadow: "0 2px 8px rgba(239,68,68,0.3)",
+          transform: selected ? "scale(1.05)" : "scale(1)",
+          transition: "0.2s ease",
         }}
       >
         {display}
@@ -83,31 +88,34 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
   const theme = useTheme();
 
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
-  const cartCount = 3;
+
+  // ✅ Get cart from RTK Query cache
+  // IMPORTANT: If your backend returns 204/NoContent sometimes, your baseQuery should map it to a valid empty cart object,
+  // or you can safely handle undefined here (we do).
+  const { data: cart } = useGetCartItemsQuery();
+
+  // ✅ cartCount = sum of quantities
+  const cartCount = React.useMemo(() => {
+    if (!cart?.products?.length) return 0;
+    return cart.products.reduce((sum, item) => sum + Number(item.quantity ?? 0), 0);
+  }, [cart]);
 
   // Desktop drawer open state (PC only)
   const [desktopNavOpen, setDesktopNavOpen] = React.useState(false);
 
   const currentValue = React.useMemo(() => {
     const allItems = [...mainNavItems, ...bottomNavItems];
-
-    // match exact OR nested routes (ex: /favorites/123 should still highlight /favorites)
     const hit = allItems.find(
       (x) => pathname === x.value || pathname.startsWith(x.value + "/")
     );
-
-    // IMPORTANT: do NOT default to "/home" — otherwise Home stays highlighted on detail pages
     return hit?.value ?? false;
   }, [pathname]);
 
-
-  // Close desktop drawer on route change (nice UX)
   React.useEffect(() => {
     setDesktopNavOpen(false);
   }, [pathname]);
 
-  // Shared Desktop Nav Item Renderer
-  const renderNavListItem = (item: typeof mainNavItems[0]) => {
+  const renderNavListItem = (item: (typeof mainNavItems)[0]) => {
     const selected = currentValue === item.value;
 
     return (
@@ -119,11 +127,10 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
             py: 1.2,
             px: 2,
             transition: "0.2s ease",
-
-            // ✅ background changes based on current location
             bgcolor: selected ? "rgba(239, 68, 68, 0.10)" : "transparent",
-            border: selected ? "1px solid rgba(239, 68, 68, 0.18)" : "1px solid transparent",
-
+            border: selected
+              ? "1px solid rgba(239, 68, 68, 0.18)"
+              : "1px solid transparent",
             "&:hover": {
               bgcolor: selected ? "rgba(239, 68, 68, 0.14)" : "rgba(0,0,0,0.03)",
             },
@@ -164,13 +171,24 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
     );
   };
 
-  // Desktop Drawer (collapsible)
   const desktopDrawer = (
     <Box sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
-      <Toolbar sx={{ my: 2.5, px: 2.5, display: "flex", justifyContent: "space-between" }}>
+      <Toolbar
+        sx={{
+          my: 2.5,
+          px: 2.5,
+          display: "flex",
+          justifyContent: "space-between",
+        }}
+      >
         <Box sx={{ display: "flex", alignItems: "center" }}>
           <Box component="img" src="/logo.svg" sx={{ width: 32, mr: 1.5 }} />
-          <Typography variant="h6" fontWeight={900} letterSpacing={-0.5} color="text.primary">
+          <Typography
+            variant="h6"
+            fontWeight={900}
+            letterSpacing={-0.5}
+            color="text.primary"
+          >
             STORE
           </Typography>
         </Box>
@@ -221,7 +239,6 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
 
   return (
     <Box sx={{ display: "flex", minHeight: "100vh", bgcolor: "#F9FAFB" }}>
-      {/* --- DESKTOP TOP BAR WITH MENU BUTTON --- */}
       {!isMobile && (
         <AppBar
           position="fixed"
@@ -231,7 +248,7 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
             backdropFilter: "blur(14px) saturate(180%)",
             borderBottom: "1px solid rgba(0,0,0,0.06)",
             color: "text.primary",
-            zIndex: 1400, // above drawer paper
+            zIndex: 1400,
           }}
         >
           <Toolbar sx={{ px: { xs: 2, md: 3 } }}>
@@ -242,11 +259,10 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
               sx={{
                 mr: 1.5,
                 borderRadius: 2,
-
-                // ✅ optional: highlight menu button while drawer is open
                 bgcolor: desktopNavOpen ? "rgba(239, 68, 68, 0.10)" : "rgba(0,0,0,0.04)",
-                border: desktopNavOpen ? "1px solid rgba(239, 68, 68, 0.18)" : "1px solid transparent",
-
+                border: desktopNavOpen
+                  ? "1px solid rgba(239, 68, 68, 0.18)"
+                  : "1px solid transparent",
                 "&:hover": {
                   bgcolor: desktopNavOpen ? "rgba(239, 68, 68, 0.14)" : "rgba(0,0,0,0.07)",
                 },
@@ -264,7 +280,6 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
         </AppBar>
       )}
 
-      {/* --- DESKTOP COLLAPSIBLE DRAWER (HIDDEN BY DEFAULT) --- */}
       {!isMobile && (
         <Drawer
           open={desktopNavOpen}
@@ -284,7 +299,6 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
         </Drawer>
       )}
 
-      {/* --- MAIN CONTENT AREA --- */}
       <Box
         component="main"
         sx={{
@@ -298,7 +312,6 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
         {children}
       </Box>
 
-      {/* --- MOBILE BOTTOM NAVIGATION --- */}
       {isMobile && (
         <Paper
           elevation={0}
@@ -322,6 +335,7 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
           >
             {[...mainNavItems, bottomNavItems[1]].map((item) => {
               const selected = currentValue === item.value;
+
               return (
                 <BottomNavigationAction
                   key={item.value}

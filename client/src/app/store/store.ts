@@ -4,6 +4,7 @@ import { catalogApi } from "../../features/catalog/catalogApi";
 import { useDispatch, useSelector } from "react-redux";
 import { uiSlice } from "../layout/uiSlice";
 import { errorApi } from "../../features/about/errorApi";
+import { cartApi } from "../../features/cart/cartApi";
 
 export const store = configureAppStore();
 
@@ -12,11 +13,12 @@ export function configureAppStore() {
     reducer: {
       [catalogApi.reducerPath]: catalogApi.reducer,
       [errorApi.reducerPath]: errorApi.reducer,
+      [cartApi.reducerPath]: cartApi.reducer,
       counter: counterReducer,
       ui: uiSlice.reducer,
     },
     middleware: (getDefaultMiddleware) => {
-      return getDefaultMiddleware().concat(catalogApi.middleware, errorApi.middleware);
+      return getDefaultMiddleware().concat(catalogApi.middleware, errorApi.middleware, cartApi.middleware);
     }
   });
 }

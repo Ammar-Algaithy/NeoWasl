@@ -11,6 +11,7 @@ import Favorite from "../../features/favorite/Favorite";
 import Notifications from "../../features/notifications/Notifications";
 import ServerError from "../errors/ServerError";
 import NotFound from "../errors/NotFound";
+import Checkout from "../../features/checkout/Checkout";
 export const router = createBrowserRouter([
     {
         path: '/',
@@ -22,6 +23,7 @@ export const router = createBrowserRouter([
             {path: '/about', element: <AboutPage />},
             {path: '/contact', element: <ContactPage />},
             {path: '/cart', element: <CartPage />},
+            {path: '/checkout', element: <Checkout />},
             {path: '/favorites', element: <Favorite />},
             {path: '/account', element: <Account />},
             {path: '/notifications', element: <Notifications />},

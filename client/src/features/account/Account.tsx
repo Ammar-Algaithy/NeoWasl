@@ -1,20 +1,90 @@
+import { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { Button, ButtonGroup, Typography } from "@mui/material";
+import { Button, ButtonGroup, Typography, Container } from "@mui/material";
 
 export default function Account() {
   // Root state shape based on your store:
   // { counter: { data: number } }
-  const data = useSelector((state: { counter: { data: number } }) => state.counter.data);
+  const data = useSelector(
+    (state: { counter: { data: number } }) => state.counter.data
+  );
   const dispatch = useDispatch();
 
+  // Match your real layout heights
+  const HEADER_H = 64;
+  const BOTTOM_NAV_H = 78;
+
+  // 🔒 Lock page scroll while this page is mounted
+  useEffect(() => {
+    const html = document.documentElement;
+    const body = document.body;
+
+    const prevHtmlOverflow = html.style.overflow;
+    const prevBodyOverflow = body.style.overflow;
+    const prevBodyHeight = body.style.height;
+
+    html.style.overflow = "hidden";
+    body.style.overflow = "hidden";
+    body.style.height = "100%";
+
+    return () => {
+      html.style.overflow = prevHtmlOverflow;
+      body.style.overflow = prevBodyOverflow;
+      body.style.height = prevBodyHeight;
+    };
+  }, []);
+
   return (
-    <>
-      <Typography variant="h2">Account Page</Typography>
-      <Typography variant="body1">Data: {data}</Typography>
-      <ButtonGroup>
-        <Button onClick={() => dispatch({ type: "increment" })}>Increment</Button>
-        <Button onClick={() => dispatch({ type: "decrement" })}>Decrement</Button>
-      </ButtonGroup>
-    </>
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "#fff",
+        overflow: "hidden",
+
+        // ❌ no scrolling anywhere by default
+        touchAction: "none",
+      }}
+    >
+      {/* ✅ ONLY THIS AREA SCROLLS */}
+      <div
+        style={{
+          position: "absolute",
+          top: HEADER_H,
+          left: 0,
+          right: 0,
+          bottom: BOTTOM_NAV_H,
+
+          overflowY: "auto",
+          overflowX: "hidden",
+          WebkitOverflowScrolling: "touch",
+          overscrollBehaviorY: "contain",
+
+          padding: "12px 14px",
+
+          // ✅ enable vertical scroll ONLY here
+          touchAction: "pan-y",
+        }}
+      >
+        <Container maxWidth="sm">
+          <Typography variant="h2" gutterBottom>
+            Account Page
+          </Typography>
+
+          <Typography variant="body1" sx={{ mb: 2 }}>
+            Data: {data}
+          </Typography>
+
+          <ButtonGroup>
+            <Button onClick={() => dispatch({ type: "increment" })}>
+              Increment
+            </Button>
+            <Button onClick={() => dispatch({ type: "decrement" })}>
+              Decrement
+            </Button>
+          </ButtonGroup>
+        </Container>
+      </div>
+    </div>
   );
 }

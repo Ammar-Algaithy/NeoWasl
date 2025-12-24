@@ -106,7 +106,43 @@ export default function TopNavBar({ onLogout }: Props) {
             onClick={() => navigate("/notifications")}
             sx={{ color: "#0b0f14" }}
           >
-            <Badge variant="dot" color="error">
+            <Badge
+              variant="dot"
+              color="error"
+              sx={{
+                "& .MuiBadge-badge": {
+                  position: "relative",
+                  // keep the dot normal (no scaling)
+                  transform: "none",
+                  // optional: make the dot a bit crisp
+                  boxShadow: "0 0 0 2px #fff",
+                },
+
+                // the expanding ripple ring
+                "& .MuiBadge-badge::after": {
+                  content: '""',
+                  position: "absolute",
+                  inset: 0,
+                  borderRadius: "50%",
+                  border: "2px solid #ef4444",
+                  opacity: 0.9,
+                  transform: "scale(1)",
+                  animation: "ripple 1.6s infinite",
+                  pointerEvents: "none",
+                },
+
+                "@keyframes ripple": {
+                  "0%": {
+                    transform: "scale(1)",
+                    opacity: 0.85,
+                  },
+                  "100%": {
+                    transform: "scale(2.6)",
+                    opacity: 0,
+                  },
+                },
+              }}
+            >
               <NotificationsNoneOutlinedIcon />
             </Badge>
           </IconButton>
