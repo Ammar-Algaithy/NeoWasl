@@ -161,8 +161,6 @@ export default function ProductCard({ product }: Props) {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          borderLeft: "1px solid",
-          borderRight: "1px solid",
           borderColor: "divider",
         }}
       >

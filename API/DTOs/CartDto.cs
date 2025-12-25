@@ -1,12 +1,11 @@
-using System;
-
 namespace API.DTOs;
 
 public class CartDto
 {
     public int Id { get; set; }
     public required string CartId { get; set; }
-    
-    public List<CartProductDto> Products { get; set; } = new();
 
+    public long TotalAmount { get; set; }
+
+    public List<CartProductDto> Products { get; set; } = new();
 }

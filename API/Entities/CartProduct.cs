@@ -14,4 +14,12 @@ public class CartProduct
 
     public int CartId { get; set; }
     public Cart Cart { get; set; } = null!;
+
+    // -----------------------------
+    // Added fields
+    // -----------------------------
+    [NotMapped]
+    public long TotalPrice => Product.Price * Quantity;
+
+    public byte[] RowVersion { get; set; } = Array.Empty<byte>();
 }

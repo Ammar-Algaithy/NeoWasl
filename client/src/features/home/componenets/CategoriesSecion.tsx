@@ -1,138 +1,200 @@
-import { Box, Typography, Card, CardActionArea } from "@mui/material";
+import { Box, Typography, Card, CardActionArea, useTheme } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 
-type Category = {
+export type CategoryItem = {
   name: string;
   image: string;
   slug: string;
 };
 
-const categories: Category[] = [
-  { name: "Drinks", slug: "Beverages", image: "https://neowaslstorage.blob.core.windows.net/images/categories/bev.jpg" },
-  { name: "Candy", slug: "Candy", image: "https://neowaslstorage.blob.core.windows.net/images/categories/candies.png" },
-  { name: "Snacks & Cookies", slug: "Snacks%20%26%20Cookies", image: "https://neowaslstorage.blob.core.windows.net/images/categories/snacksandcookies.png" },
-  { name: "Cakes", slug: "Cakes", image: "https://neowaslstorage.blob.core.windows.net/images/categories/cakes.jpg" },
-  { name: "Gums", slug: "Gum", image: "https://neowaslstorage.blob.core.windows.net/images/categories/GUMS.jpg" },
-  { name: "Meds", slug: "MED", image: "https://neowaslstorage.blob.core.windows.net/images/categories/MEDS.jpg" },
-  { name: "Essentials", slug: "Essentials", image: "https://neowaslstorage.blob.core.windows.net/images/categories/essentials.png" },
-  { name: "All", slug: "All", image: "https://neowaslstorage.blob.core.windows.net/images/categories/all.png" },
-];
+type Props = {
+  title?: string;
+  categories: CategoryItem[];
 
-function CategoryCard({ name, image, slug }: Category) {
+  // navigation
+  buildUrl?: (slug: string) => string; // default: /products/:slug
+
+  // layout
+  columns?: number; // default 2
+  gap?: number; // default 2 (theme spacing units)
+  cardHeight?: number; // default 140
+  borderRadius?: number; // default 1
+
+  // style
+  variant?: "light" | "dark"; // default light
+
+  // ✅ show fixed rows and scroll inside
+  scrollRows?: number; // set to 2 for "two rows only"
+
+  // scrollbar
+  hideScrollbar?: boolean; // default true
+};
+
+export default function CategorySection({
+  title = "Categories",
+  categories,
+  buildUrl = (slug) => `/products/${slug}`,
+
+  columns = 2,
+  gap = 2,
+  cardHeight = 140,
+  borderRadius = 1,
+
+  variant = "light",
+  scrollRows = 2, // ✅ default to 2 rows visible
+  hideScrollbar = true,
+}: Props) {
+  const theme = useTheme();
   const navigate = useNavigate();
+  const isDark = variant === "dark";
+
+  // ✅ Use theme spacing to match the grid gap exactly
+  const gapPx = Number(theme.spacing(gap).replace("px", "")) || 0;
+
+  // ✅ Height = rows * cardHeight + (rows - 1) * gapPx
+  const containerHeight =
+    scrollRows && scrollRows > 0
+      ? scrollRows * cardHeight + (scrollRows - 1) * gapPx
+      : undefined;
 
   return (
-    <Card
-      elevation={0}
-      sx={{
-        position: "relative",
-        height: 140, // keep consistent so 2 rows = "4 at a time"
-        borderRadius: 1,
-        overflow: "hidden",
-        cursor: "pointer",
-        border: "1px solid rgba(0,0,0,0.08)",
-        boxShadow: "0 14px 28px rgba(0,0,0,0.18)",
-        transition: "transform 200ms ease",
-        "&:active": { transform: "scale(0.98)" },
-      }}
-    >
-      <CardActionArea
-        onClick={() => navigate(`/products/${slug}`)}
-        sx={{ height: "100%" }}
-      >
-        {/* Background image */}
-        <Box
+    <Box>
+      {title ? (
+        <Typography
           sx={{
-            position: "absolute",
-            inset: 0,
-            backgroundImage: `url(${image})`,
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-            filter: "contrast(1.05) saturate(1.05)",
-          }}
-        />
-
-        {/* Dark overlay */}
-        <Box
-          sx={{
-            position: "absolute",
-            inset: 0,
-            background:
-              "linear-gradient(to top, rgba(0,0,0,0.55), rgba(0,0,0,0.15))",
-          }}
-        />
-
-        {/* Label pill */}
-        <Box
-          sx={{
-            position: "absolute",
-            left: 12,
-            bottom: 12,
-            px: 1.5,
-            py: 0.75,
-            borderRadius: 1,
-            bgcolor: "rgba(0,0,0,0.45)",
-            backdropFilter: "blur(6px)",
-            WebkitBackdropFilter: "blur(6px)",
-            boxShadow: "0 6px 14px rgba(0,0,0,0.25)",
+            fontSize: 22,
+            fontWeight: 900,
+            mb: 2,
+            color: isDark ? "common.white" : "#0b0f14",
+            letterSpacing: 0.2,
           }}
         >
-          <Typography
-            sx={{
-              fontSize: 13,
-              fontWeight: 800,
-              color: "#fff",
-              lineHeight: 1,
-              maxWidth: 140,
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-            }}
-          >
-            {name}
-          </Typography>
-        </Box>
-      </CardActionArea>
-    </Card>
-  );
-}
+          {title}
+        </Typography>
+      ) : null}
 
-export default function CategoriesSection() {
-  return (
-    <Box sx={{ mt: 2 }}>
-      <Typography
-        sx={{
-          fontSize: 22,
-          fontWeight: 900,
-          mb: 2,
-          color: "#0b0f14",
-        }}
-      >
-        Categories
-      </Typography>
-
-      {/* Scroll container: shows 4 at a time */}
+      {/* ✅ ONLY THIS CONTAINER SCROLLS */}
       <Box
         sx={{
-          height: 140 * 2 + 16, // 2 rows * 140px + gap (16px) => 4 visible cards
+          height: containerHeight, // ✅ 2 rows visible
           overflowY: "auto",
           overflowX: "hidden",
-          pr: 0.5, // small space so content doesn't sit under scrollbar
+          pr: 0.5,
 
-          // optional: hide scrollbar but keep scroll working
-          scrollbarWidth: "none", // Firefox
-          "&::-webkit-scrollbar": { display: "none" }, // Chrome/Safari/Edge
+          WebkitOverflowScrolling: "touch",
+          overscrollBehaviorY: "contain",
+
+          ...(hideScrollbar
+            ? {
+                scrollbarWidth: "none",
+                "&::-webkit-scrollbar": { display: "none" },
+              }
+            : {}),
         }}
       >
         <Box
           sx={{
             display: "grid",
-            gridTemplateColumns: "repeat(2, 1fr)",
-            gap: 2,
+            gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
+            gap,
           }}
         >
           {categories.map((cat) => (
-            <CategoryCard key={cat.slug} {...cat} />
+            <Card
+              key={cat.slug}
+              elevation={0}
+              sx={{
+                position: "relative",
+                height: cardHeight,
+                borderRadius,
+                overflow: "hidden",
+                bgcolor: "transparent",
+                cursor: "pointer",
+
+                boxShadow: isDark
+                  ? "0 6px 22px rgba(0,0,0,0.45)"
+                  : "0 6px 18px rgba(0,0,0,0.10)",
+                transition: "transform 160ms ease, box-shadow 160ms ease",
+                "&:hover": {
+                  transform: "translateY(-2px)",
+                  boxShadow: isDark
+                    ? "0 10px 28px rgba(0,0,0,0.55)"
+                    : "0 10px 24px rgba(0,0,0,0.14)",
+                },
+                "&:active": { transform: "scale(0.98)" },
+              }}
+            >
+              <CardActionArea
+                onClick={() => navigate(buildUrl(cat.slug))}
+                sx={{
+                  height: "100%",
+                  borderRadius,
+                  "&:focus-visible": {
+                    outline: isDark
+                      ? "3px solid rgba(239,68,68,0.55)"
+                      : "3px solid rgba(11,15,20,0.35)",
+                    outlineOffset: "2px",
+                  },
+                }}
+              >
+                {/* Background image */}
+                <Box
+                  sx={{
+                    position: "absolute",
+                    inset: 0,
+                    backgroundImage: `url(${cat.image})`,
+                    backgroundSize: "cover",
+                    backgroundPosition: "center",
+                    filter: isDark
+                      ? "contrast(1.08) saturate(1.08)"
+                      : "contrast(1.05) saturate(1.05)",
+                  }}
+                />
+
+                {/* Overlay */}
+                <Box
+                  sx={{
+                    position: "absolute",
+                    inset: 0,
+                    background: isDark
+                      ? "linear-gradient(to top, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.05) 62%)"
+                      : "linear-gradient(to top, rgba(0,0,0,0.55), rgba(0,0,0,0.12))",
+                  }}
+                />
+
+                {/* Label pill */}
+                <Box
+                  sx={{
+                    position: "absolute",
+                    left: 12,
+                    bottom: 12,
+                    px: 1.5,
+                    py: 0.75,
+                    borderRadius,
+                    bgcolor: "rgba(0,0,0,0.45)",
+                    backdropFilter: "blur(6px)",
+                    WebkitBackdropFilter: "blur(6px)",
+                    boxShadow: "0 6px 14px rgba(0,0,0,0.25)",
+                    maxWidth: "80%",
+                  }}
+                >
+                  <Typography
+                    sx={{
+                      fontSize: 13,
+                      fontWeight: 800,
+                      color: "common.white",
+                      lineHeight: 1,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                    title={cat.name}
+                  >
+                    {cat.name}
+                  </Typography>
+                </Box>
+              </CardActionArea>
+            </Card>
           ))}
         </Box>
       </Box>

@@ -1,16 +1,28 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-
 namespace API.Entities;
 
 public class Cart
 {
     public int Id { get; set; }
+
     public required string CartId { get; set; }
-    
+
     public List<CartProduct> Products { get; set; } = new();
 
+    // -----------------------------
+    // Added fields
+    // -----------------------------
+    public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
+    public DateTime? UpdatedAtUtc { get; set; }
+
+    public byte[] RowVersion { get; set; } = Array.Empty<byte>();
+
+    public string Status { get; set; } = "Active";
+
+    public long TotalAmount => Products.Sum(p => p.TotalPrice);
+
+    // -----------------------------
+    // Existing logic
+    // -----------------------------
     public void AddProduct(Product product, int quantity)
     {
         ArgumentNullException.ThrowIfNull(product);
@@ -25,7 +37,9 @@ public class Cart
             Products.Add(new CartProduct
             {
                 Product = product,
+                ProductId = product.Id,
                 Quantity = quantity,
+                CartId = Id
             });
             return;
         }

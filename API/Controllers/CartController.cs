@@ -29,7 +29,9 @@ public class CartController(StoreContext context) : BaseApiController
     }
 
     [HttpPost]
-    public async Task<ActionResult<CartDto>> AddProductToCart([FromQuery] int productId, [FromQuery] int quantity)
+    public async Task<ActionResult<CartDto>> AddProductToCart(
+        [FromQuery] int productId,
+        [FromQuery] int quantity)
     {
         if (quantity <= 0)
             return BadRequest("Quantity must be greater than zero.");
@@ -39,32 +41,35 @@ public class CartController(StoreContext context) : BaseApiController
 
         var product = await context.Products.FindAsync(productId);
         if (product == null)
-            return BadRequest("Problem Adding Product to Cart");
+            return BadRequest("Product not found.");
 
         cart.AddProduct(product, quantity);
+        cart.UpdatedAtUtc = DateTime.UtcNow;
 
         var saved = await context.SaveChangesAsync() > 0;
         if (!saved)
-            return BadRequest("Problem Updating Cart");
+            return BadRequest("Problem updating cart.");
 
-        // Return the same shape as GetCart
-        return Ok(CartExtensions.ToCartDto(cart));
+        return Ok(cart.ToCartDto());
     }
 
     [HttpDelete]
-    public async Task<IActionResult> RemoveCartItem(int productId, [FromQuery] int? quantity = null)
+    public async Task<IActionResult> RemoveCartItem(
+        int productId,
+        [FromQuery] int? quantity = null)
     {
         var cart = await RetrieveCart();
         if (cart == null)
             return NoContent();
 
         cart.RemoveProduct(productId, quantity);
+        cart.UpdatedAtUtc = DateTime.UtcNow;
 
         var saved = await context.SaveChangesAsync() > 0;
         if (!saved)
-            return BadRequest("Problem Removing Product from Cart");
+            return BadRequest("Problem removing product from cart.");
 
-        return Ok(CartExtensions.ToCartDto(cart));
+        return Ok(cart.ToCartDto());
     }
 
     private async Task<Cart?> RetrieveCart()
@@ -91,9 +96,14 @@ public class CartController(StoreContext context) : BaseApiController
 
         Response.Cookies.Append("CartId", cartId, cookieOptions);
 
-        var cart = new Cart { CartId = cartId };
-        context.Carts.Add(cart);
+        var cart = new Cart
+        {
+            CartId = cartId,
+            CreatedAtUtc = DateTime.UtcNow,
+            Status = "Active"
+        };
 
+        context.Carts.Add(cart);
         return cart;
     }
 }

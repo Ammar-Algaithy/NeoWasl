@@ -26,6 +26,8 @@ export default function ProductsDetailes() {
   const { data: product, isLoading } = useFetchProductDetailsQuery(productId);
   const navigate = useNavigate();
 
+  console.log(product); // ✅ log the product data for debugging
+
   const [quantity, setQuantity] = useState(1);
   const [showToast, setShowToast] = useState(false);
 

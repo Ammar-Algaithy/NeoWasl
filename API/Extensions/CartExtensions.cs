@@ -1,4 +1,3 @@
-using System;
 using API.DTOs;
 using API.Entities;
 
@@ -10,14 +9,16 @@ public static class CartExtensions
     {
         return new CartDto
         {
+            Id = cart.Id,
             CartId = cart.CartId,
+            TotalAmount = cart.TotalAmount,
+
             Products = cart.Products.Select(x => new CartProductDto
             {
                 ProductId = x.ProductId,
                 Name = x.Product.Name,
-                // IMPORTANT: if Product.Price is decimal dollars, this truncates.
-                // Prefer decimal in DTO, or convert to cents properly.
-                Price = (int)x.Product.Price,
+                Price = x.Product.Price,
+                TotalPrice = x.TotalPrice,
                 PictureUrl = x.Product.PictureUrl,
                 Brand = x.Product.Brand,
                 Type = x.Product.Type,

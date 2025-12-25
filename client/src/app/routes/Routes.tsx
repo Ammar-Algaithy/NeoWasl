@@ -12,13 +12,17 @@ import Notifications from "../../features/notifications/Notifications";
 import ServerError from "../errors/ServerError";
 import NotFound from "../errors/NotFound";
 import Checkout from "../../features/checkout/Checkout";
+import CategoryPage from "../../features/catalog/CategoryPage";
+import SmokePage from "../../features/home/SmokePage";
 export const router = createBrowserRouter([
     {
         path: '/',
         element: <App />,
         children: [
             {path: '/home', element: <HomePage />},
+            {path: '/smoke', element: <SmokePage />},
             {path: '/catalog', element: <Catalog />},
+            {path: '/products/:slug', element: <CategoryPage />},
             {path: '/catalog/:id', element: <ProductsDetailes />},
             {path: '/about', element: <AboutPage />},
             {path: '/contact', element: <ContactPage />},

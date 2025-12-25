@@ -21,7 +21,19 @@ export default function TopNavBar({ onLogout }: Props) {
   const location = useLocation();
   const theme = useTheme();
 
-  const isProductDetails = location.pathname.includes("/catalog/");
+  // 1. Detect if we are on a "Child" page (Category or Product Details)
+  // Assumes your routes are like /products/candy or /products/1
+  const isChildPage = location.pathname.includes("/products");
+
+  // 2. Extract the Title from the URL
+  // Example: /products/Snacks%20%26%20Cookies -> "Snacks & Cookies"
+  const getLastSegment = () => {
+      const parts = location.pathname.split('/').filter(Boolean);
+      const lastPart = parts[parts.length - 1];
+      return decodeURIComponent(lastPart); // Fixes %20 to spaces
+  };
+
+  const pageTitle = isChildPage ? getLastSegment() : "NeoWasl";
 
   return (
     <AppBar
@@ -31,45 +43,43 @@ export default function TopNavBar({ onLogout }: Props) {
         bgcolor: "#fff",
         color: "#0b0f14",
         borderBottom: `1px solid ${theme.palette.divider}`,
-        // Remove all default positioning offsets
         top: 0,
         left: 0,
         right: 0,
         width: "100%",
+        zIndex: 1200 // Ensure it stays above content
       }}
     >
       <Toolbar 
         disableGutters 
         sx={{ 
           height: 64, 
-          px: { xs: 2, sm: 3 }, // Horizontal padding only
+          px: { xs: 2, sm: 3 }, 
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
         }}
       >
-        {/* Left Side: Contextual Button */}
-        <Box sx={{ minWidth: 100, display: 'flex', justifyContent: 'flex-start' }}>
-          {isProductDetails ? (
-            <Button
+        {/* LEFT SECTION */}
+        <Box sx={{ minWidth: 80, display: 'flex', justifyContent: 'flex-start' }}>
+          {isChildPage ? (
+            <IconButton
               onClick={() => navigate(-1)}
-              startIcon={<ArrowBackIosNewIcon sx={{ fontSize: "14px !important" }} />}
-              sx={{
+              sx={{ 
                 color: "#0b0f14",
-                fontWeight: 800,
-                textTransform: "none",
-                "&:hover": { bgcolor: "transparent", color: "#ef4444" },
+                p: 1,
+                ml: -1 // Align icon visually with page margin
               }}
             >
-              Back
-            </Button>
+              <ArrowBackIosNewIcon sx={{ fontSize: 20 }} />
+            </IconButton>
           ) : (
             <Button
               onClick={onLogout}
               variant="contained"
               disableElevation
               sx={{
-                borderRadius: 2, // Slightly more retail-standard than 999
+                borderRadius: 2,
                 height: 36,
                 px: 2,
                 fontWeight: 800,
@@ -83,63 +93,57 @@ export default function TopNavBar({ onLogout }: Props) {
           )}
         </Box>
 
-        {/* Center: Brand */}
+        {/* CENTER SECTION: Dynamic Title */}
         <Typography
-          onClick={() => navigate("/")}
+          onClick={() => !isChildPage && navigate("/")} // Only clickable on Home
+          noWrap
           sx={{
             fontWeight: 900,
-            fontSize: { xs: 20, sm: 24 },
-            cursor: "pointer",
+            fontSize: { xs: 18, sm: 22 }, // Slightly smaller for long category names
+            cursor: isChildPage ? "default" : "pointer",
             textAlign: "center",
-            display: "flex",
-            alignItems: "center",
-            gap: 0.5
+            color: "#0b0f14",
+            textTransform: isChildPage ? "capitalize" : "none",
+            maxWidth: "60%", // Prevent long titles from hitting icons
+            overflow: "hidden",
+            textOverflow: "ellipsis"
           }}
         >
-          <Box component="span" sx={{ color: "#0b0f14" }}>Neo</Box>
-          <Box component="span" sx={{ color: "#ef4444" }}>Wasl</Box>
+          {isChildPage ? (
+             pageTitle
+          ) : (
+             <>
+               <Box component="span">Neo</Box>
+               <Box component="span" sx={{ color: "#ef4444" }}>Wasl</Box>
+             </>
+          )}
         </Typography>
 
-        {/* Right Side: Icons */}
-        <Box sx={{ minWidth: 100, display: "flex", justifyContent: "flex-end" }}>
+        {/* RIGHT SECTION: Notifications */}
+        <Box sx={{ minWidth: 80, display: "flex", justifyContent: "flex-end" }}>
           <IconButton
             onClick={() => navigate("/notifications")}
-            sx={{ color: "#0b0f14" }}
+            sx={{ color: "#0b0f14", mr: -1 }} // mr-1 aligns icon to edge
           >
             <Badge
               variant="dot"
               color="error"
               sx={{
                 "& .MuiBadge-badge": {
-                  position: "relative",
-                  // keep the dot normal (no scaling)
-                  transform: "none",
-                  // optional: make the dot a bit crisp
                   boxShadow: "0 0 0 2px #fff",
                 },
-
-                // the expanding ripple ring
+                // Optional: Keeping your ripple effect
                 "& .MuiBadge-badge::after": {
                   content: '""',
                   position: "absolute",
                   inset: 0,
                   borderRadius: "50%",
                   border: "2px solid #ef4444",
-                  opacity: 0.9,
-                  transform: "scale(1)",
                   animation: "ripple 1.6s infinite",
-                  pointerEvents: "none",
                 },
-
                 "@keyframes ripple": {
-                  "0%": {
-                    transform: "scale(1)",
-                    opacity: 0.85,
-                  },
-                  "100%": {
-                    transform: "scale(2.6)",
-                    opacity: 0,
-                  },
+                  "0%": { transform: "scale(1)", opacity: 0.85 },
+                  "100%": { transform: "scale(2.6)", opacity: 0 },
                 },
               }}
             >

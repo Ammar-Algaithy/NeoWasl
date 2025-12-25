@@ -29,22 +29,82 @@ import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
 import MenuIcon from "@mui/icons-material/Menu";
 import CloseIcon from "@mui/icons-material/Close";
 
-// ✅ import your cart query hook
+// ✅ cart query hook
 import { useGetCartItemsQuery } from "../../features/cart/cartApi";
 
 // --- Configuration ---
 const DRAWER_WIDTH = 280;
 
-const mainNavItems = [
-  { label: "Home", value: "/home", icon: <HomeOutlinedIcon /> },
-  { label: "Favorites", value: "/favorites", icon: <FavoriteBorderOutlinedIcon /> },
-  { label: "Cart", value: "/cart", icon: <ShoppingCartOutlinedIcon /> },
-];
+type PageMode = "grocery" | "smoke" | "electronics" | "accessories";
 
-const bottomNavItems = [
-  { label: "Settings", value: "/settings", icon: <SettingsOutlinedIcon /> },
-  { label: "Account", value: "/account", icon: <PersonOutlineOutlinedIcon /> },
-];
+const LAST_MODE_KEY = "neoWasl:lastBusinessMode";
+
+function safeReadLastMode(): PageMode {
+  try {
+    const v = localStorage.getItem(LAST_MODE_KEY);
+    if (v === "grocery" || v === "smoke" || v === "electronics" || v === "accessories") return v;
+  } catch {
+    // ignore
+  }
+  return "grocery";
+}
+
+function safeWriteLastMode(mode: PageMode) {
+  try {
+    localStorage.setItem(LAST_MODE_KEY, mode);
+  } catch {
+    // ignore
+  }
+}
+
+// Strictly detect business mode only on business routes
+function getBusinessModeFromPath(pathname: string): PageMode | null {
+  if (pathname.startsWith("/smoke")) return "smoke";
+  if (pathname.startsWith("/electronics")) return "electronics";
+  if (pathname.startsWith("/accessories")) return "accessories";
+
+  // Grocery "business" routes
+  if (pathname === "/home" || pathname.startsWith("/home/")) return "grocery";
+
+  // If your grocery product/catalog routes live outside /home, add them here.
+  // Example:
+  // if (pathname.startsWith("/products") || pathname.startsWith("/catalog")) return "grocery";
+
+  return null;
+}
+
+function getHomeRouteForMode(mode: PageMode): string {
+  switch (mode) {
+    case "smoke":
+      return "/smoke";
+    case "electronics":
+      return "/electronics";
+    case "accessories":
+      return "/accessories";
+    case "grocery":
+    default:
+      return "/home";
+  }
+}
+
+// --------------------
+// ✅ Universal Bottom Nav Theme (fits all business types)
+// --------------------
+const NAV = {
+  // Neutral “premium” ink
+  ink: "#0b0f14",
+  muted: "rgba(11, 15, 20, 0.55)",
+  line: "rgba(11, 15, 20, 0.10)",
+  glassBg: "rgba(255, 255, 255, 0.92)",
+
+  // Universal accent (works with pink/red/indigo/orange around the app)
+  accent: "#ef4444", // slate/near-black (clean, universal)
+  accentSoft: "rgba(17, 24, 39, 0.10)",
+
+  // Badge stays red universally (classic cart badge)
+  badgeBg: "#ef4444",
+  badgeBorder: "#fff",
+} as const;
 
 // --- Sub-Component: Cart Badge ---
 function CartIconWithBadge({ count, selected }: { count: number; selected: boolean }) {
@@ -69,9 +129,8 @@ function CartIconWithBadge({ count, selected }: { count: number; selected: boole
           fontSize: 10,
           fontWeight: 800,
           color: "#fff",
-          background: "linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)",
-          border: "2px solid #fff",
-          boxShadow: "0 2px 8px rgba(239,68,68,0.3)",
+          background: NAV.badgeBg,
+          border: `2px solid ${NAV.badgeBorder}`,
           transform: selected ? "scale(1.05)" : "scale(1)",
           transition: "0.2s ease",
         }}
@@ -82,34 +141,66 @@ function CartIconWithBadge({ count, selected }: { count: number; selected: boole
   );
 }
 
-export default function LayoutWrapper({ children }: { children: React.ReactNode }) {
+export default function BottomNav({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const theme = useTheme();
-
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
 
-  // ✅ Get cart from RTK Query cache
-  // IMPORTANT: If your backend returns 204/NoContent sometimes, your baseQuery should map it to a valid empty cart object,
-  // or you can safely handle undefined here (we do).
+  // 1) Determine current business mode:
+  //    - If we're on a business route => use it and persist it.
+  //    - If we're on a shared route (cart/favorites/etc.) => use last persisted mode.
+  const businessModeFromPath = React.useMemo(() => getBusinessModeFromPath(pathname), [pathname]);
+
+  const mode = React.useMemo<PageMode>(() => {
+    return businessModeFromPath ?? safeReadLastMode();
+  }, [businessModeFromPath]);
+
+  React.useEffect(() => {
+    if (businessModeFromPath) {
+      safeWriteLastMode(businessModeFromPath);
+    }
+  }, [businessModeFromPath]);
+
+  // ✅ Home route depends on last/active business mode
+  const homeRoute = React.useMemo(() => getHomeRouteForMode(mode), [mode]);
+
+  const mainNavItems = React.useMemo(
+    () => [
+      { label: "Home", value: homeRoute, icon: <HomeOutlinedIcon /> },
+      { label: "Favorites", value: "/favorites", icon: <FavoriteBorderOutlinedIcon /> },
+      { label: "Cart", value: "/cart", icon: <ShoppingCartOutlinedIcon /> },
+    ],
+    [homeRoute]
+  );
+
+  const bottomNavItems = React.useMemo(
+    () => [
+      { label: "Settings", value: "/settings", icon: <SettingsOutlinedIcon /> },
+      { label: "Account", value: "/account", icon: <PersonOutlineOutlinedIcon /> },
+    ],
+    []
+  );
+
+  // Cart
   const { data: cart } = useGetCartItemsQuery();
 
-  // ✅ cartCount = sum of quantities
   const cartCount = React.useMemo(() => {
     if (!cart?.products?.length) return 0;
     return cart.products.reduce((sum, item) => sum + Number(item.quantity ?? 0), 0);
   }, [cart]);
 
-  // Desktop drawer open state (PC only)
   const [desktopNavOpen, setDesktopNavOpen] = React.useState(false);
 
   const currentValue = React.useMemo(() => {
     const allItems = [...mainNavItems, ...bottomNavItems];
-    const hit = allItems.find(
-      (x) => pathname === x.value || pathname.startsWith(x.value + "/")
-    );
-    return hit?.value ?? false;
-  }, [pathname]);
+
+    const exact = allItems.find((x) => pathname === x.value);
+    if (exact) return exact.value;
+
+    const prefix = allItems.find((x) => pathname.startsWith(x.value + "/"));
+    return prefix?.value ?? false;
+  }, [pathname, mainNavItems, bottomNavItems]);
 
   React.useEffect(() => {
     setDesktopNavOpen(false);
@@ -127,12 +218,10 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
             py: 1.2,
             px: 2,
             transition: "0.2s ease",
-            bgcolor: selected ? "rgba(239, 68, 68, 0.10)" : "transparent",
-            border: selected
-              ? "1px solid rgba(239, 68, 68, 0.18)"
-              : "1px solid transparent",
+            bgcolor: selected ? NAV.accentSoft : "transparent",
+            border: selected ? `1px solid ${NAV.line}` : "1px solid transparent",
             "&:hover": {
-              bgcolor: selected ? "rgba(239, 68, 68, 0.14)" : "rgba(0,0,0,0.03)",
+              bgcolor: selected ? NAV.accentSoft : "rgba(255, 0, 47, 0.03)",
             },
           }}
         >
@@ -144,10 +233,10 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
                 display: "grid",
                 placeItems: "center",
                 borderRadius: "12px",
-                bgcolor: selected ? "error.main" : "transparent",
+                bgcolor: selected ? NAV.accent : "transparent",
                 color: selected ? "#fff" : "text.secondary",
                 transition: "0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)",
-                boxShadow: selected ? "0 4px 12px rgba(239,68,68,0.25)" : "none",
+                boxShadow: selected ? "0 6px 18px rgba(243, 6, 53, 0.18)" : "none",
               }}
             >
               {item.value === "/cart" ? (
@@ -163,7 +252,7 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
             primaryTypographyProps={{
               fontWeight: selected ? 800 : 600,
               fontSize: "0.95rem",
-              color: selected ? "text.primary" : "text.secondary",
+              color: selected ? NAV.ink : "text.secondary",
             }}
           />
         </ListItemButton>
@@ -183,12 +272,7 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
       >
         <Box sx={{ display: "flex", alignItems: "center" }}>
           <Box component="img" src="/logo.svg" sx={{ width: 32, mr: 1.5 }} />
-          <Typography
-            variant="h6"
-            fontWeight={900}
-            letterSpacing={-0.5}
-            color="text.primary"
-          >
+          <Typography variant="h6" fontWeight={900} letterSpacing={-0.5} color={NAV.ink}>
             STORE
           </Typography>
         </Box>
@@ -211,7 +295,7 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
               borderRadius: 4,
               py: 1.2,
               px: 2,
-              "&:hover": { bgcolor: "rgba(239, 68, 68, 0.04)" },
+              "&:hover": { bgcolor: "rgba(244, 9, 64, 0.03)" },
             }}
           >
             <ListItemIcon sx={{ minWidth: 50 }}>
@@ -246,8 +330,8 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
           sx={{
             bgcolor: "rgba(255,255,255,0.85)",
             backdropFilter: "blur(14px) saturate(180%)",
-            borderBottom: "1px solid rgba(0,0,0,0.06)",
-            color: "text.primary",
+            borderBottom: `1px solid ${NAV.line}`,
+            color: NAV.ink,
             zIndex: 1400,
           }}
         >
@@ -259,19 +343,17 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
               sx={{
                 mr: 1.5,
                 borderRadius: 2,
-                bgcolor: desktopNavOpen ? "rgba(239, 68, 68, 0.10)" : "rgba(0,0,0,0.04)",
-                border: desktopNavOpen
-                  ? "1px solid rgba(239, 68, 68, 0.18)"
-                  : "1px solid transparent",
+                bgcolor: desktopNavOpen ? NAV.accentSoft : "rgba(251, 5, 38, 0.04)",
+                border: desktopNavOpen ? `1px solid ${NAV.line}` : "1px solid transparent",
                 "&:hover": {
-                  bgcolor: desktopNavOpen ? "rgba(239, 68, 68, 0.14)" : "rgba(0,0,0,0.07)",
+                  bgcolor: desktopNavOpen ? NAV.accentSoft : "rgba(252, 1, 60, 0.07)",
                 },
               }}
             >
               <MenuIcon />
             </IconButton>
 
-            <Typography fontWeight={900} letterSpacing={-0.3}>
+            <Typography fontWeight={900} letterSpacing={-0.3} color={NAV.ink}>
               STORE
             </Typography>
 
@@ -290,7 +372,7 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
             "& .MuiDrawer-paper": {
               width: DRAWER_WIDTH,
               boxSizing: "border-box",
-              borderRight: "1px solid rgba(0,0,0,0.06)",
+              borderRight: `1px solid ${NAV.line}`,
               bgcolor: "#FFFFFF",
             },
           }}
@@ -321,10 +403,10 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
             left: 0,
             right: 0,
             zIndex: 1300,
-            bgcolor: "rgba(255, 255, 255, 0.9)",
-            backdropFilter: "blur(20px) saturate(180%)",
-            borderTop: "1px solid rgba(0,0,0,0.05)",
             pb: "env(safe-area-inset-bottom)",
+            bgcolor: NAV.glassBg,
+            backdropFilter: "blur(20px) saturate(180%)",
+            borderTop: `1px solid ${NAV.line}`,
           }}
         >
           <BottomNavigation
@@ -349,8 +431,8 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
                         height: 42,
                         display: "grid",
                         placeItems: "center",
-                        transform: selected ? "scale(1.1) translateY(-2px)" : "none",
-                        transition: "0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)",
+                        transform: selected ? "scale(1.08) translateY(-2px)" : "none",
+                        transition: "0.28s cubic-bezier(0.175, 0.885, 0.32, 1.275)",
                       }}
                     >
                       <Box
@@ -358,19 +440,13 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
                           position: "absolute",
                           inset: 0,
                           borderRadius: "12px",
-                          bgcolor: selected ? "error.main" : "transparent",
+                          bgcolor: selected ? NAV.accent : "transparent",
                           opacity: selected ? 1 : 0,
-                          transition: "0.3s",
-                          boxShadow: selected ? "0 4px 12px rgba(239,68,68,0.25)" : "none",
+                          transition: "0.25s ease",
+                          boxShadow: selected ? "0 6px 18px rgba(245, 7, 86, 0.18)" : "none",
                         }}
                       />
-                      <Box
-                        sx={{
-                          zIndex: 1,
-                          display: "flex",
-                          color: selected ? "#fff" : "text.secondary",
-                        }}
-                      >
+                      <Box sx={{ zIndex: 1, display: "flex", color: selected ? "#fff" : NAV.muted }}>
                         {item.value === "/cart" ? (
                           <CartIconWithBadge count={cartCount} selected={selected} />
                         ) : (
@@ -384,7 +460,7 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
                       fontSize: 10,
                       fontWeight: 700,
                       mt: 0.5,
-                      color: selected ? "error.main" : "text.secondary",
+                      color: selected ? NAV.ink : NAV.muted,
                     },
                   }}
                 />
