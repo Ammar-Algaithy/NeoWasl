@@ -1,3 +1,4 @@
+using System.Text.Json;
 using API.Data;
 using API.Entities;
 using API.Extensions;
@@ -71,6 +72,15 @@ namespace API.Controllers
             );
 
             Response.AddPaginationHeader(paged.MetaData);
+            
+            var jsonLog = JsonSerializer.Serialize(paged.MetaData, new JsonSerializerOptions { WriteIndented = true });
+
+            Console.WriteLine("++++++++++++++++++ PRODUCT LIST ++++++++++++++++++");
+foreach (var p in paged)
+{
+    Console.WriteLine($"ID: {p.Id} | Name: {p.Name} | Price: {p.Price}");
+}
+Console.WriteLine("++++++++++++++++++++++++++++++++++++++++++++++++++");
             return paged;
         }
 

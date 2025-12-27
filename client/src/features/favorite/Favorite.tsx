@@ -1,5 +1,7 @@
 import { useEffect } from "react";
 import { Container, Typography } from "@mui/material";
+import TopNavBar from "../../app/layout/TopNavBar";
+import BottomNav from "../../app/layout/BottomNav";
 
 export default function Favorite() {
   // Match your real layout heights
@@ -27,6 +29,8 @@ export default function Favorite() {
   }, []);
 
   return (
+    <>
+    <TopNavBar />
     <div
       style={{
         position: "fixed",
@@ -69,5 +73,7 @@ export default function Favorite() {
         </Container>
       </div>
     </div>
+    <BottomNav children={undefined} />
+    </>
   );
 }

@@ -7,33 +7,58 @@ import {
   IconButton,
   Toolbar,
   Typography,
-  useTheme
+  useTheme,
+  CircularProgress
 } from "@mui/material";
 import NotificationsNoneOutlinedIcon from "@mui/icons-material/NotificationsNoneOutlined";
 import ArrowBackIosNewIcon from "@mui/icons-material/ArrowBackIosNew";
+import { useLogoutMutation } from "../../features/account/accountApi";
 
-type Props = {
-  onLogout?: () => void;
-};
-
-export default function TopNavBar({ onLogout }: Props) {
+export default function TopNavBar() {
   const navigate = useNavigate();
   const location = useLocation();
   const theme = useTheme();
 
-  // 1. Detect if we are on a "Child" page (Category or Product Details)
-  // Assumes your routes are like /products/candy or /products/1
-  const isChildPage = location.pathname.includes("/products");
+  const [logoutUser, { isLoading: isLoggingOut }] = useLogoutMutation();
 
-  // 2. Extract the Title from the URL
-  // Example: /products/Snacks%20%26%20Cookies -> "Snacks & Cookies"
-  const getLastSegment = () => {
-      const parts = location.pathname.split('/').filter(Boolean);
-      const lastPart = parts[parts.length - 1];
-      return decodeURIComponent(lastPart); // Fixes %20 to spaces
+  // 1. Improved Child Detection
+  // Checks if we are deep in a structure, e.g., /products/1 or /account/settings
+  // You can add more main routes to the exclusion list if needed.
+  const isChildPage = location.pathname !== "/" && location.pathname !== "/home";
+
+  // 2. Fix: Split by "/" instead of "/home"
+  const getPageTitle = () => {
+    // splits "/products/Snacks%20" -> ["products", "Snacks%20"]
+    const parts = location.pathname.split('/').filter(Boolean);
+    
+    if (parts.length === 0) return "NeoWasl";
+
+    const lastPart = parts[parts.length - 1];
+    
+    // Check if the last part is a number (like an ID: /products/24)
+    if (!isNaN(Number(lastPart))) {
+       return "Product Details"; // Fallback for IDs
+    }
+
+    // Decode and replace hyphens/underscores with spaces
+    return decodeURIComponent(lastPart).replace(/[-_]/g, " ");
   };
 
-  const pageTitle = isChildPage ? getLastSegment() : "NeoWasl";
+  const pageTitle = getPageTitle();
+
+  const handleLogout = async () => {
+    try {
+      // Attempt to tell server to clear cookies
+      await logoutUser().unwrap();
+    } catch (error) {
+      // If 401 happens here, it usually means the session was already expired.
+      console.warn("Logout API failed (likely session expired):", error);
+    } finally {
+      // ✅ CRITICAL: This runs whether the API succeeded OR failed.
+      // We always want to send the user to the sign-in screen.
+      navigate("/sign-in"); 
+    }
+  };
 
   return (
     <AppBar
@@ -47,7 +72,7 @@ export default function TopNavBar({ onLogout }: Props) {
         left: 0,
         right: 0,
         width: "100%",
-        zIndex: 1200 // Ensure it stays above content
+        zIndex: 1200
       }}
     >
       <Toolbar 
@@ -68,14 +93,15 @@ export default function TopNavBar({ onLogout }: Props) {
               sx={{ 
                 color: "#0b0f14",
                 p: 1,
-                ml: -1 // Align icon visually with page margin
+                ml: -1 
               }}
             >
               <ArrowBackIosNewIcon sx={{ fontSize: 20 }} />
             </IconButton>
           ) : (
             <Button
-              onClick={onLogout}
+              onClick={handleLogout}
+              disabled={isLoggingOut} // Disable while loading
               variant="contained"
               disableElevation
               sx={{
@@ -86,25 +112,26 @@ export default function TopNavBar({ onLogout }: Props) {
                 textTransform: "none",
                 bgcolor: "#ef4444",
                 "&:hover": { bgcolor: "#dc2626" },
+                "&.Mui-disabled": { bgcolor: "#fca5a5", color: "white" }
               }}
             >
-              Log Out
+              {isLoggingOut ? <CircularProgress size={20} color="inherit" /> : "Log Out"}
             </Button>
           )}
         </Box>
 
-        {/* CENTER SECTION: Dynamic Title */}
+        {/* CENTER SECTION */}
         <Typography
-          onClick={() => !isChildPage && navigate("/")} // Only clickable on Home
+          onClick={() => !isChildPage && navigate("/")}
           noWrap
           sx={{
             fontWeight: 900,
-            fontSize: { xs: 18, sm: 22 }, // Slightly smaller for long category names
+            fontSize: { xs: 18, sm: 22 },
             cursor: isChildPage ? "default" : "pointer",
             textAlign: "center",
             color: "#0b0f14",
             textTransform: isChildPage ? "capitalize" : "none",
-            maxWidth: "60%", // Prevent long titles from hitting icons
+            maxWidth: "60%",
             overflow: "hidden",
             textOverflow: "ellipsis"
           }}
@@ -119,20 +146,17 @@ export default function TopNavBar({ onLogout }: Props) {
           )}
         </Typography>
 
-        {/* RIGHT SECTION: Notifications */}
+        {/* RIGHT SECTION */}
         <Box sx={{ minWidth: 80, display: "flex", justifyContent: "flex-end" }}>
           <IconButton
             onClick={() => navigate("/notifications")}
-            sx={{ color: "#0b0f14", mr: -1 }} // mr-1 aligns icon to edge
+            sx={{ color: "#0b0f14", mr: -1 }}
           >
             <Badge
               variant="dot"
               color="error"
               sx={{
-                "& .MuiBadge-badge": {
-                  boxShadow: "0 0 0 2px #fff",
-                },
-                // Optional: Keeping your ripple effect
+                "& .MuiBadge-badge": { boxShadow: "0 0 0 2px #fff" },
                 "& .MuiBadge-badge::after": {
                   content: '""',
                   position: "absolute",

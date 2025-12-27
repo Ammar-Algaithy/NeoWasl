@@ -1,8 +1,6 @@
 import { useMemo } from "react";
 import { Box, Container, CssBaseline, ThemeProvider, createTheme } from "@mui/material";
-import TopNavBar from "./TopNavBar";
 import { Outlet } from "react-router-dom";
-import BottomNav from "./BottomNav";
 
 function App() {
 
@@ -107,15 +105,11 @@ function App() {
     <ThemeProvider theme={theme}>
       <CssBaseline />
 
-      {/* NavBar no longer receives theme toggle props */}
-      <TopNavBar />
-
       <Box sx={{ minHeight: "100vh", bgcolor: "background.default", mb: 7 }}>
         <Container maxWidth="lg" sx={{ mt: { xs: 10, sm: 12 }, pb: 4 }}>
           <Outlet />
         </Container>
       </Box>
-      <BottomNav children={undefined} />
     </ThemeProvider>
   );
 }

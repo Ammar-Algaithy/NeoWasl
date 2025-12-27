@@ -24,7 +24,7 @@ type Props = {
   variant?: "light" | "dark"; // default light
 
   // ✅ show fixed rows and scroll inside
-  scrollRows?: number; // set to 2 for "two rows only"
+  scrollRows?: number; // default 2 rows visible
 
   // scrollbar
   hideScrollbar?: boolean; // default true
@@ -33,7 +33,7 @@ type Props = {
 export default function CategorySection({
   title = "Categories",
   categories,
-  buildUrl = (slug) => `/products/${slug}`,
+  buildUrl = (slug) => `/products/${encodeURIComponent(slug)}`,
 
   columns = 2,
   gap = 2,
@@ -41,21 +41,39 @@ export default function CategorySection({
   borderRadius = 1,
 
   variant = "light",
-  scrollRows = 2, // ✅ default to 2 rows visible
+  scrollRows = 2,
   hideScrollbar = true,
 }: Props) {
   const theme = useTheme();
   const navigate = useNavigate();
   const isDark = variant === "dark";
 
-  // ✅ Use theme spacing to match the grid gap exactly
-  const gapPx = Number(theme.spacing(gap).replace("px", "")) || 0;
-
-  // ✅ Height = rows * cardHeight + (rows - 1) * gapPx
+  // Height = rows * cardHeight + (rows - 1) * gapPx
+  const gapPx = parseFloat(theme.spacing(gap)) || 0;
   const containerHeight =
     scrollRows && scrollRows > 0
       ? scrollRows * cardHeight + (scrollRows - 1) * gapPx
       : undefined;
+
+  const cardShadow = isDark
+    ? "0 6px 22px rgba(0,0,0,0.45)"
+    : "0 6px 18px rgba(0,0,0,0.10)";
+
+  const cardShadowHover = isDark
+    ? "0 10px 28px rgba(0,0,0,0.55)"
+    : "0 10px 24px rgba(0,0,0,0.14)";
+
+  const imageFilter = isDark
+    ? "contrast(1.08) saturate(1.08)"
+    : "contrast(1.05) saturate(1.05)";
+
+  const overlayBg = isDark
+    ? "linear-gradient(to top, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.05) 62%)"
+    : "linear-gradient(to top, rgba(0,0,0,0.55), rgba(0,0,0,0.12))";
+
+  const focusOutline = isDark
+    ? "3px solid rgba(239,68,68,0.55)"
+    : "3px solid rgba(11,15,20,0.35)";
 
   return (
     <Box>
@@ -76,14 +94,12 @@ export default function CategorySection({
       {/* ✅ ONLY THIS CONTAINER SCROLLS */}
       <Box
         sx={{
-          height: containerHeight, // ✅ 2 rows visible
+          height: containerHeight,
           overflowY: "auto",
           overflowX: "hidden",
           pr: 0.5,
-
           WebkitOverflowScrolling: "touch",
           overscrollBehaviorY: "contain",
-
           ...(hideScrollbar
             ? {
                 scrollbarWidth: "none",
@@ -110,16 +126,11 @@ export default function CategorySection({
                 overflow: "hidden",
                 bgcolor: "transparent",
                 cursor: "pointer",
-
-                boxShadow: isDark
-                  ? "0 6px 22px rgba(0,0,0,0.45)"
-                  : "0 6px 18px rgba(0,0,0,0.10)",
+                boxShadow: cardShadow,
                 transition: "transform 160ms ease, box-shadow 160ms ease",
                 "&:hover": {
                   transform: "translateY(-2px)",
-                  boxShadow: isDark
-                    ? "0 10px 28px rgba(0,0,0,0.55)"
-                    : "0 10px 24px rgba(0,0,0,0.14)",
+                  boxShadow: cardShadowHover,
                 },
                 "&:active": { transform: "scale(0.98)" },
               }}
@@ -130,9 +141,7 @@ export default function CategorySection({
                   height: "100%",
                   borderRadius,
                   "&:focus-visible": {
-                    outline: isDark
-                      ? "3px solid rgba(239,68,68,0.55)"
-                      : "3px solid rgba(11,15,20,0.35)",
+                    outline: focusOutline,
                     outlineOffset: "2px",
                   },
                 }}
@@ -145,9 +154,7 @@ export default function CategorySection({
                     backgroundImage: `url(${cat.image})`,
                     backgroundSize: "cover",
                     backgroundPosition: "center",
-                    filter: isDark
-                      ? "contrast(1.08) saturate(1.08)"
-                      : "contrast(1.05) saturate(1.05)",
+                    filter: imageFilter,
                   }}
                 />
 
@@ -156,9 +163,7 @@ export default function CategorySection({
                   sx={{
                     position: "absolute",
                     inset: 0,
-                    background: isDark
-                      ? "linear-gradient(to top, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.05) 62%)"
-                      : "linear-gradient(to top, rgba(0,0,0,0.55), rgba(0,0,0,0.12))",
+                    background: overlayBg,
                   }}
                 />
 

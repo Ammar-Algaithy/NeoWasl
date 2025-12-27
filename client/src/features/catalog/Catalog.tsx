@@ -68,6 +68,7 @@ export default function Catalog() {
           <ProductList products={data} />
         </div>
       </div>
+      
     </div>
   );
 }

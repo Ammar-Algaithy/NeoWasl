@@ -6,6 +6,7 @@ import { uiSlice } from "../layout/uiSlice";
 import { errorApi } from "../../features/about/errorApi";
 import { cartApi } from "../../features/cart/cartApi";
 import { catalogSlice } from "../../features/catalog/catalogSlice";
+import { accountApi } from "../../features/account/accountApi";
 
 export const store = configureAppStore();
 
@@ -15,12 +16,13 @@ export function configureAppStore() {
       [catalogApi.reducerPath]: catalogApi.reducer,
       [errorApi.reducerPath]: errorApi.reducer,
       [cartApi.reducerPath]: cartApi.reducer,
+      [accountApi.reducerPath]: accountApi.reducer,
       counter: counterReducer,
       ui: uiSlice.reducer,
       catalog: catalogSlice.reducer
     },
     middleware: (getDefaultMiddleware) => {
-      return getDefaultMiddleware().concat(catalogApi.middleware, errorApi.middleware, cartApi.middleware);
+      return getDefaultMiddleware().concat(catalogApi.middleware, errorApi.middleware, cartApi.middleware, accountApi.middleware);
     }
   });
 }

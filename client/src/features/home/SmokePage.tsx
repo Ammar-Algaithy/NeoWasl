@@ -7,8 +7,8 @@ import BusinessTypeSwitcher, { type BusinessType } from "./componenets/BusinessT
 import type { CategoryItem } from "./componenets/CategoriesSecion";
 import CategorySection from "./componenets/CategoriesSecion";
 import PromoBanner from "./componenets/PromoBanner";
-// 1. Import the new component
-import FeaturedProducts from "./componenets/FeaturedProducts"; 
+import FeaturedProducts from "./componenets/FeaturedProducts";
+import BottomNav from "../../app/layout/BottomNav";
 
 const BUSINESS_TYPE = "Smoke Gear" as const;
 
@@ -24,32 +24,58 @@ export default function SmokePage() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
+  // Keep your values (do not change UI/colors)
+  const HEADER_H = 64;
   const BOTTOM_NAV_H = 78;
-  const HEADER_H = 168;
-
-  useEffect(() => {
-    dispatch(setBusinessType(BUSINESS_TYPE));
-    const html = document.documentElement;
-    const body = document.body;
-    const prevHtmlOverflow = html.style.overflow;
-    const prevBodyOverflow = body.style.overflow;
-    const prevBodyHeight = body.style.height;
-
-    html.style.overflow = "hidden";
-    body.style.overflow = "hidden";
-    body.style.height = "100%";
-
-    return () => {
-      html.style.overflow = prevHtmlOverflow;
-      body.style.overflow = prevBodyOverflow;
-      body.style.height = prevBodyHeight;
-    };
-  }, [dispatch]);
 
   const activeType: BusinessType = "Smoke Gear";
 
+  // ✅ Lock background (body) scrolling, while allowing the inner container to scroll
   useEffect(() => {
-    dispatch(setBusinessType(activeType));
+    dispatch(setBusinessType(BUSINESS_TYPE));
+
+    const html = document.documentElement;
+    const body = document.body;
+    const root = document.getElementById("root");
+
+    // Save current scroll position (prevents jumps)
+    const scrollY = window.scrollY;
+
+    // Capture previous styles
+    const prevHtmlOverflow = html.style.overflow;
+    const prevBodyOverflow = body.style.overflow;
+    const prevBodyPosition = body.style.position;
+    const prevBodyWidth = body.style.width;
+    const prevBodyTop = body.style.top;
+
+    // Apply lock
+    html.style.overflow = "hidden";
+    body.style.overflow = "hidden";
+    body.style.position = "fixed";
+    body.style.width = "100%";
+    body.style.top = `-${scrollY}px`;
+
+    if (root) {
+      root.style.height = "100%";
+      root.style.overflow = "hidden";
+    }
+
+    return () => {
+      // Restore
+      html.style.overflow = prevHtmlOverflow;
+      body.style.overflow = prevBodyOverflow;
+      body.style.position = prevBodyPosition;
+      body.style.width = prevBodyWidth;
+      body.style.top = prevBodyTop;
+
+      if (root) {
+        root.style.height = "";
+        root.style.overflow = "";
+      }
+
+      // Restore scroll position
+      window.scrollTo(0, scrollY);
+    };
   }, [dispatch]);
 
   const handleSelect = (type: BusinessType) => {
@@ -65,10 +91,9 @@ export default function SmokePage() {
         overflow: "hidden",
         color: "common.white",
         zIndex: 1300,
-        touchAction: "none",
       }}
     >
-      {/* Header */}
+      {/* --- HEADER (Fixed) --- */}
       <Box
         component="header"
         sx={{
@@ -124,9 +149,13 @@ export default function SmokePage() {
           onSelect={handleSelect}
           navigateTo={navigate}
         />
-        <Box sx={{width: "100%", marginBottom: -3}}><PromoBanner /></Box>
+
+        <Box sx={{ width: "100%", marginBottom: -3 }}>
+          <PromoBanner />
+        </Box>
       </Box>
-      {/* Content Area */}
+
+      {/* --- SCROLLABLE CONTENT (ONLY THIS SCROLLS) --- */}
       <Box
         sx={{
           position: "absolute",
@@ -137,28 +166,26 @@ export default function SmokePage() {
           overflowY: "auto",
           overflowX: "hidden",
           WebkitOverflowScrolling: "touch",
-          overscrollBehaviorY: "contain",
-          // Removed padding here so FeaturedProducts spans full width if needed
-          // You can add px: 2 back to individual sections if you want margins
-          px: 0, 
+          overscrollBehavior: "none", // ✅ prevents rubber-banding + unnecessary overscroll
+          bgcolor: "#0f1115", // ✅ prevents any white showing if content is short
+          px: 0,
           py: 2,
-          touchAction: "pan-y",
         }}
       >
-        {/* Container for Categories to keep padding */}
-        <Box sx={{ px: 2 }}>
-            <CategorySection
-              title="Categories"
-              categories={smokeCategories}
-              variant="dark"
-              cardHeight={148}
-            />
+        <Box sx={{ px: 2, pt: 13 }}>
+          <CategorySection
+            title="Categories"
+            categories={smokeCategories}
+            variant="dark"
+            cardHeight={148}
+          />
         </Box>
 
-        {/* 2. Call it here. It will automatically detect "Smoke" mode */}
         <FeaturedProducts />
-        
       </Box>
+
+      {/* ✅ Bottom nav must NOT be inside the scroll container */}
+      <BottomNav children={undefined} />
     </Box>
   );
 }

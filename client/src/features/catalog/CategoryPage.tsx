@@ -8,24 +8,46 @@ import ProductList from "./ProductList";
 import type { RootState } from "../../app/store/store";
 import { useGetProductsByCategoryQuery } from "./catalogApi";
 import CatalogControls from "./CatalogControls";
+import TopNavBar from "../../app/layout/TopNavBar";
+import BottomNav from "../../app/layout/BottomNav";
 
-function CategoryPageInner({ category }: { category: string }) {
-  const theme = useTheme();
-  const isSmDown = useMediaQuery(theme.breakpoints.down("sm"));
-  const isMdDown = useMediaQuery(theme.breakpoints.down("md"));
+/**
+ * RELATIONSHIP MAP
+ * - CatalogControls -> dispatches Redux updates (search/sort/filters)
+ * - CategoryPage -> reads Redux + category slug, builds query args, fetches products
+ * - ProductList -> pure rendering of products passed from CategoryPage
+ */
 
-  const {
-    businessType,
-    searchTerm,
-    orderBy,
-    selectedBrands,
-    selectedTypes,
-    pageSize,
-  } = useSelector((state: RootState) => state.catalog);
+const HEADER_H = 64;
+const BOTTOM_NAV_H = 78;
 
-  const [pageNumber, setPageNumber] = useState(1);
+function lockBodyScroll() {
+  const html = document.documentElement;
+  const body = document.body;
 
-  const { data, isLoading, isFetching, isError } = useGetProductsByCategoryQuery({
+  const prevHtmlOverflow = html.style.overflow;
+  const prevBodyOverflow = body.style.overflow;
+  const prevBodyHeight = body.style.height;
+
+  html.style.overflow = "hidden";
+  body.style.overflow = "hidden";
+  body.style.height = "100%";
+
+  return () => {
+    html.style.overflow = prevHtmlOverflow;
+    body.style.overflow = prevBodyOverflow;
+    body.style.height = prevBodyHeight;
+  };
+}
+
+function buildQueryArgs(
+  category: string,
+  pageNumber: number,
+  state: RootState["catalog"]
+) {
+  const { businessType, searchTerm, orderBy, selectedBrands, selectedTypes, pageSize } = state;
+
+  return {
     category,
     businessType,
     pageNumber,
@@ -34,7 +56,25 @@ function CategoryPageInner({ category }: { category: string }) {
     orderBy,
     brands: selectedBrands,
     types: selectedTypes,
-  });
+  };
+}
+
+function CategoryPageInner({ category }: { category: string }) {
+  const theme = useTheme();
+  const isSmDown = useMediaQuery(theme.breakpoints.down("sm"));
+  const isMdDown = useMediaQuery(theme.breakpoints.down("md"));
+
+  const catalogState = useSelector((state: RootState) => state.catalog);
+
+  // Paging is local to this page
+  const [pageNumber, setPageNumber] = useState(1);
+
+  const args = useMemo(
+    () => buildQueryArgs(category, pageNumber, catalogState),
+    [category, pageNumber, catalogState]
+  );
+
+  const { data, isLoading, isFetching, isError } = useGetProductsByCategoryQuery(args);
 
   const items = data?.items ?? [];
   const meta = data?.meta;
@@ -44,30 +84,10 @@ function CategoryPageInner({ category }: { category: string }) {
     return meta.currentPage < meta.totalPages;
   }, [meta]);
 
-  // Keep your existing “app shell” heights
-  const HEADER_H = 64;
-  const BOTTOM_NAV_H = 78;
+  // lock body scrolling while mounted
+  useEffect(() => lockBodyScroll(), []);
 
-  // Lock page scroll (keep your behavior)
-  useEffect(() => {
-    const html = document.documentElement;
-    const body = document.body;
-
-    const prevHtmlOverflow = html.style.overflow;
-    const prevBodyOverflow = body.style.overflow;
-    const prevBodyHeight = body.style.height;
-
-    html.style.overflow = "hidden";
-    body.style.overflow = "hidden";
-    body.style.height = "100%";
-
-    return () => {
-      html.style.overflow = prevHtmlOverflow;
-      body.style.overflow = prevBodyOverflow;
-      body.style.height = prevBodyHeight;
-    };
-  }, []);
-
+  // infinite scroll sentinel
   const sentinelRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -99,12 +119,6 @@ function CategoryPageInner({ category }: { category: string }) {
     );
   }
 
-  /**
-   * Responsive width strategy (same UI pattern):
-   * - Mobile: tight (like your current)
-   * - Tablet: a bit wider
-   * - Desktop: wider but still centered (not full width)
-   */
   const contentMaxWidth = isSmDown ? 520 : isMdDown ? 720 : 980;
 
   return (
@@ -117,7 +131,7 @@ function CategoryPageInner({ category }: { category: string }) {
         touchAction: "none",
       }}
     >
-      {/* Scroll area under header and above bottom nav */}
+      {/* Only this region scrolls */}
       <Box
         sx={{
           position: "absolute",
@@ -130,37 +144,16 @@ function CategoryPageInner({ category }: { category: string }) {
           WebkitOverflowScrolling: "touch",
           overscrollBehaviorY: "contain",
           touchAction: "pan-y",
-
-          // Responsive padding keeps the same pattern but feels better on desktop
           px: { xs: 1.25, sm: 2, md: 3 },
-          pt: { xs: 1.25, sm: 1.5 },
           pb: { xs: 2, sm: 2.5 },
         }}
       >
-        {/* Centered “content column” (pattern preserved) */}
-        <Box
-          sx={{
-            maxWidth: `${contentMaxWidth}px`,
-            mx: "auto",
-          }}
-        >
-          {/* Controls */}
+        <Box sx={{ maxWidth: `${contentMaxWidth}px`, mx: "auto" }}>
+          {/* Controls read/write Redux; CategoryPage reads Redux and fetches */}
           <CatalogControls category={category} />
 
-          {/* Products */}
           {items.length === 0 ? (
-            <Box
-              sx={{
-                textAlign: "center",
-                mt: 5,
-                color: "#9ca3af",
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                gap: 1,
-              }}
-            >
-              <Typography sx={{ fontSize: 40, lineHeight: 1 }}>📦</Typography>
+            <Box sx={{ textAlign: "center", mt: 5, color: "#9ca3af" }}>
               <Typography sx={{ fontWeight: 700 }}>
                 No items found in {category}
               </Typography>
@@ -187,27 +180,26 @@ export default function CategoryPage() {
   const { slug } = useParams<{ slug: string }>();
   const category = slug || "All";
 
-  const {
-    businessType,
-    searchTerm,
-    orderBy,
-    selectedBrands,
-    selectedTypes,
-    pageSize,
-  } = useSelector((state: RootState) => state.catalog);
+  const catalogState = useSelector((state: RootState) => state.catalog);
 
-  // Remount on filter changes to reset paging (your pattern preserved)
+  // Remount to reset pageNumber when filters change
   const resetKey = useMemo(() => {
     return JSON.stringify({
       category,
-      businessType,
-      searchTerm: searchTerm.trim(),
-      orderBy,
-      brands: [...selectedBrands].sort(),
-      types: [...selectedTypes].sort(),
-      pageSize,
+      businessType: catalogState.businessType,
+      searchTerm: catalogState.searchTerm.trim(),
+      orderBy: catalogState.orderBy,
+      brands: [...catalogState.selectedBrands].sort(),
+      types: [...catalogState.selectedTypes].sort(),
+      pageSize: catalogState.pageSize,
     });
-  }, [category, businessType, searchTerm, orderBy, selectedBrands, selectedTypes, pageSize]);
+  }, [category, catalogState]);
 
-  return <CategoryPageInner key={resetKey} category={category} />;
+  return (
+  <>
+    <TopNavBar />
+    <CategoryPageInner key={resetKey} category={category} />;
+    <BottomNav children={undefined} />
+  </>
+  );
 }

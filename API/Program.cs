@@ -1,5 +1,7 @@
 using API.Data;
+using API.Entities;
 using API.Middleware;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -15,6 +17,25 @@ builder.Services.AddCors();
 
 builder.Services.AddTransient<ExceptionMiddleware>();
 
+builder.Services.AddIdentityApiEndpoints<User>(opt =>
+{
+    opt.User.RequireUniqueEmail = true;
+
+    opt.Password.RequiredLength = 8;
+    opt.Password.RequiredUniqueChars = 1;
+    opt.Password.RequireLowercase = true;
+    opt.Password.RequireUppercase = true;
+    opt.Password.RequireDigit = true;
+    opt.Password.RequireNonAlphanumeric = false;
+
+    opt.Lockout.AllowedForNewUsers = true;
+    opt.Lockout.MaxFailedAccessAttempts = 5;
+    opt.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(60);
+})
+.AddRoles<IdentityRole>()
+.AddEntityFrameworkStores<StoreContext>();
+
+
 var app = builder.Build();
 
 app.UseHttpsRedirection();
@@ -27,8 +48,13 @@ app.UseCors(opt =>
     opt.AllowAnyHeader().AllowAnyMethod().AllowCredentials().WithOrigins("https://localhost:3000");
 });
 
-app.MapControllers();
+app.UseAuthentication();
+app.UseAuthorization();
 
-DbInitializer.InitDb(app);
+app.MapControllers();
+app.MapGroup("api").MapIdentityApi<User>();
+
+await DbInitializer.InitDbAsync(app);
 
 app.Run();
+

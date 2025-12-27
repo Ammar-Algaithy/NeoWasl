@@ -8,6 +8,8 @@ import PromoBanner from "./componenets/PromoBanner";
 import type { RootState } from "../../app/store/store";
 import BusinessTypeSwitcher, { type BusinessType } from "./componenets/BusinessTypeSwitcher";
 import FeaturedProducts from "./componenets/FeaturedProducts";
+import TopNavBar from "../../app/layout/TopNavBar";
+import BottomNav from "../../app/layout/BottomNav";
 
 const groceryCategories = [
   {
@@ -89,6 +91,8 @@ export default function HomePage() {
   };
 
   return (
+    <>
+    <TopNavBar />
     <div style={{ position: "fixed", inset: 0, background: "#f3f4f6", overflow: "hidden", touchAction: "none" }}>
       <div style={{
           position: "absolute", top: HEADER_H, left: 0, right: 0, bottom: BOTTOM_NAV_H,
@@ -113,5 +117,7 @@ export default function HomePage() {
         </div>
       </div>
     </div>
+    <BottomNav children={undefined} />
+    </>
   );
 }

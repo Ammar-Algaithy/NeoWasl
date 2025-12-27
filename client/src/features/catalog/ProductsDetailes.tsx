@@ -18,6 +18,7 @@ import RemoveIcon from "@mui/icons-material/Remove";
 import { useFetchProductDetailsQuery } from "./catalogApi";
 import LoadingComponent from "../../app/layout/LoadingComponent";
 import { useAddCartItemMutation } from "../cart/cartApi"; // ✅ adjust path if needed
+import BottomNav from "../../app/layout/BottomNav";
 
 export default function ProductsDetailes() {
   const { id } = useParams<{ id: string }>();
@@ -25,8 +26,6 @@ export default function ProductsDetailes() {
 
   const { data: product, isLoading } = useFetchProductDetailsQuery(productId);
   const navigate = useNavigate();
-
-  console.log(product); // ✅ log the product data for debugging
 
   const [quantity, setQuantity] = useState(1);
   const [showToast, setShowToast] = useState(false);
@@ -66,6 +65,8 @@ export default function ProductsDetailes() {
         <Button onClick={() => navigate("/catalog")}>Back</Button>
       </Box>
     );
+
+  const price = product.price / 100;
 
   return (
     <>
@@ -151,7 +152,7 @@ export default function ProductsDetailes() {
             <Typography
               sx={{ fontSize: "1.8rem", fontWeight: 900, color: "#ef4444" }}
             >
-              ${Number(product.price ?? 0).toLocaleString()}
+              ${Number(price ?? 0).toLocaleString()}
             </Typography>
             <Chip
               label="In Stock"
@@ -249,6 +250,7 @@ export default function ProductsDetailes() {
           </Box>
         </Box>
       </Box>
+      <BottomNav children={undefined} />
     </>
   );
 }

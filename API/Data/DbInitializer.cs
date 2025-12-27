@@ -1,28 +1,44 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using API.Entities;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
 namespace API.Data;
 
 public class DbInitializer
 {
-    public static void InitDb(WebApplication app)
+    public static async Task InitDbAsync(WebApplication app)
     {
         using var scope = app.Services.CreateScope();
+
         var context = scope.ServiceProvider.GetRequiredService<StoreContext>()
             ?? throw new InvalidOperationException("StoreContext not found");
 
-        SeedData(context);
+        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<User>>()
+            ?? throw new InvalidOperationException("UserManager not found");
+
+        var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>()
+            ?? throw new InvalidOperationException("RoleManager not found");
+
+        await SeedDataAsync(context, userManager, roleManager);
     }
 
-    private static void SeedData(StoreContext context)
+    private static async Task SeedDataAsync(
+        StoreContext context,
+        UserManager<User> userManager,
+        RoleManager<IdentityRole> roleManager)
     {
-        // 1. Apply any pending migrations
-        context.Database.Migrate();
+        // 1) Apply migrations
+        await context.Database.MigrateAsync();
 
-        // 2. Define the master list of data
+        // 2) Seed Products
+        await SeedProductsAsync(context);
+
+        // 3) Seed Roles + Users (exactly 3 accounts)
+        await SeedIdentityAsync(userManager, roleManager);
+    }
+
+    private static async Task SeedProductsAsync(StoreContext context)
+    {
         var products = new List<Product>
         {
             // --- EXISTING ITEMS ---
@@ -49,7 +65,7 @@ public class DbInitializer
                 Category = "Equipment",
                 BusinessType = "B2C",
                 QuantityInStock = 100,
-                DiscountAmount = 15000 * 0.02m, 
+                DiscountAmount = 15000 * 0.02m,
                 DiscountStartUtc = DateTime.UtcNow,
                 DiscountEndUtc = DateTime.UtcNow.AddDays(30)
             },
@@ -208,8 +224,8 @@ public class DbInitializer
                 PictureUrl = "/images/products/boot-core1.png",
                 Brand = "NetCore",
                 Type = "Boots",
-                Category = "Beverages",
-                BusinessType = "Merchandise",
+                Category = "Wraps",
+                BusinessType = "Smoke",
                 QuantityInStock = 100
             },
             new() {
@@ -219,8 +235,8 @@ public class DbInitializer
                 PictureUrl = "/images/products/boot-ang2.png",
                 Brand = "Angular",
                 Type = "Boots",
-                Category = "Beverages",
-                BusinessType = "Merchandise",
+                Category = "Wraps",
+                BusinessType = "Smoke Gear",
                 QuantityInStock = 100
             },
             new() {
@@ -230,11 +246,11 @@ public class DbInitializer
                 PictureUrl = "/images/products/boot-ang1.png",
                 Brand = "Angular",
                 Type = "Boots",
-                Category = "Beverages",
-                BusinessType = "Merchandise",
+                Category = "Hookah",
+                BusinessType = "Smoke Gear",
                 QuantityInStock = 100
             },
-            
+
             // --- NEW ITEMS ADDED BELOW ---
             new() {
                 Name = "ALOEVINE WATERMELON 16.9OZ 20CT",
@@ -250,7 +266,7 @@ public class DbInitializer
             new() {
                 Name = "ALOEVINE KIWE 16.9OZ 20CT",
                 Description = "Delicious Kiwi flavored Aloe drink with real aloe pulp.",
-                Price = 1999, // Adjusted from 0.00 to match sibling product
+                Price = 1999,
                 PictureUrl = "https://neowaslstorage.blob.core.windows.net/images/beverages/ALOEVINE KIWE 16.9OZ 20CT.jpg",
                 Brand = "AloeVine",
                 Type = "Beverages",
@@ -315,20 +331,17 @@ public class DbInitializer
             }
         };
 
-        // 3. Loop through the list to Add or Update
         foreach (var product in products)
         {
-            var existingProduct = context.Products
-                .FirstOrDefault(p => p.Name == product.Name);
+            var existingProduct = await context.Products
+                .FirstOrDefaultAsync(p => p.Name == product.Name);
 
             if (existingProduct == null)
             {
-                // New Product: Add it
                 context.Products.Add(product);
             }
             else
             {
-                // Existing Product: Update fields
                 existingProduct.Category = product.Category;
                 existingProduct.BusinessType = product.BusinessType;
                 existingProduct.Tags = product.Tags;
@@ -344,7 +357,152 @@ public class DbInitializer
             }
         }
 
-        // 4. Commit changes
-        context.SaveChanges();
+        await context.SaveChangesAsync();
+    }
+
+    private static async Task SeedIdentityAsync(
+        UserManager<User> userManager,
+        RoleManager<IdentityRole> roleManager)
+    {
+        // Roles that match your AccountType
+        var roles = new[] { "User", "Business", "Admin" };
+
+        foreach (var role in roles)
+        {
+            if (!await roleManager.RoleExistsAsync(role))
+            {
+                var roleResult = await roleManager.CreateAsync(new IdentityRole(role));
+                if (!roleResult.Succeeded)
+                {
+                    var errors = string.Join("; ", roleResult.Errors.Select(e => $"{e.Code}: {e.Description}"));
+                    throw new InvalidOperationException($"Failed to create role '{role}': {errors}");
+                }
+            }
+        }
+
+        // Must satisfy your password policy
+        const string password = "TestUser1"; 
+
+        // ✅ EXACTLY 3 accounts total: 1 Public, 1 Business, 1 Admin
+        await EnsureUserAsync(
+            userManager,
+            email: "public@test.com",
+            password: password,
+            accountType: AccountType.Public,
+            role: "User",
+            businessName: null,
+            taxId: null,
+            address: new Address
+            {
+                FullName = "Public User",
+                Line1 = "100 Public St",
+                City = "New York",
+                State = "NY",
+                PostalCode = "10001",
+                Country = "US",
+                PhoneNumber = "555-000-0001"
+            });
+
+        await EnsureUserAsync(
+            userManager,
+            email: "business@test.com",
+            password: password,
+            accountType: AccountType.Business,
+            role: "Business",
+            businessName: "NeoWasl Business LLC",
+            taxId: "11-1111111",
+            address: new Address
+            {
+                FullName = "Business Owner",
+                Line1 = "200 Business Ave",
+                Line2 = "Suite 10",
+                City = "Bronx",
+                State = "NY",
+                PostalCode = "10459",
+                Country = "US",
+                PhoneNumber = "555-100-0001"
+            });
+
+        await EnsureUserAsync(
+            userManager,
+            email: "admin@test.com",
+            password: password,
+            accountType: AccountType.Admin,
+            role: "Admin",
+            businessName: null,
+            taxId: null,
+            address: new Address
+            {
+                FullName = "Admin User",
+                Line1 = "1 Admin Plaza",
+                City = "New York",
+                State = "NY",
+                PostalCode = "10005",
+                Country = "US",
+                PhoneNumber = "555-900-0001"
+            });
+    }
+
+    private static async Task EnsureUserAsync(
+        UserManager<User> userManager,
+        string email,
+        string password,
+        AccountType accountType,
+        string role,
+        string? businessName,
+        string? taxId,
+        Address? address)
+    {
+        var existing = await userManager.FindByEmailAsync(email);
+        if (existing != null)
+        {
+            // Keep role synced
+            if (!await userManager.IsInRoleAsync(existing, role))
+            {
+                var addRoleResult = await userManager.AddToRoleAsync(existing, role);
+                if (!addRoleResult.Succeeded)
+                {
+                    var errors = string.Join("; ", addRoleResult.Errors.Select(e => $"{e.Code}: {e.Description}"));
+                    throw new InvalidOperationException($"Failed to add role '{role}' to '{email}': {errors}");
+                }
+            }
+
+            // Keep AccountType synced (optional but useful)
+            if (existing.AccountType != accountType)
+            {
+                existing.AccountType = accountType;
+                existing.BusinessName = businessName;
+                existing.TaxId = taxId;
+                await userManager.UpdateAsync(existing);
+            }
+
+            // NOTE: We do not overwrite the address if user already exists.
+            // If you want to overwrite it, tell me and I will add the update logic safely.
+            return;
+        }
+
+        var user = new User
+        {
+            UserName = email,
+            Email = email,
+            AccountType = accountType,
+            BusinessName = businessName,
+            TaxId = taxId,
+            ShippingAddress = address
+        };
+
+        var result = await userManager.CreateAsync(user, password);
+        if (!result.Succeeded)
+        {
+            var errors = string.Join("; ", result.Errors.Select(e => $"{e.Code}: {e.Description}"));
+            throw new InvalidOperationException($"Failed to create user '{email}': {errors}");
+        }
+
+        var roleResult2 = await userManager.AddToRoleAsync(user, role);
+        if (!roleResult2.Succeeded)
+        {
+            var errors = string.Join("; ", roleResult2.Errors.Select(e => $"{e.Code}: {e.Description}"));
+            throw new InvalidOperationException($"Failed to add role '{role}' to '{email}': {errors}");
+        }
     }
 }
